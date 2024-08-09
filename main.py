@@ -1,64 +1,40 @@
-from utils.calc import adjust_for_inflation
-from utils.enums import Frequency, MonthlyCompoundType
+from utils.calc import calculate_annual_income_tax, simulate_account, calculate_annual_federal_income_tax, calculate_annual_social_security_tax, calculate_annual_medicare_tax
+from utils.enums import AccountType, Filing, Frequency, MonthlyCompoundType
 from utils.parameters import Account, Person
-import math
+from utils.globals import GlobalParameters
+import matplotlib.pyplot as plt
 
+user = Person(pre_tax_income=115_000, retirement_age=65, lifespan=150)
+user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
+                         regular_investment_dollar=1600,
+                         annual_investment_increase=0.02,
+                         account_type= AccountType.GENERIC,
+                         annual_retirement_expense=70_000,
+                         ))
 
+fig, (ax1, ax2) = plt.subplots(1, 2)
 
-inflation_rate: int = 0.03
-user = Person(retirement_age=65)
-someAccount = Account(annual_investment_increase=0.02, compound_frequency=Frequency.ANNUALLY)
-graph_labels = []
-graph_savings_values = []
+for account_name, account in user.accounts.items():
+    graph_labels, graph_savings_values = simulate_account(user.accounts[account_name])
+    ax1.plot(graph_labels, graph_savings_values, label=account_name)
+    print(account_name)
 
-current_savings = someAccount.initial_savings
+ax1.set_title('Retirement Savings')
+ax1.legend(loc='best')
+ax1.set_xlabel('age (years)')
+ax1.set_ylabel('investment savings (dollars)')
 
-# accumulation phase
-for year in range(user.retirement_age - user.current_age):
-    #compounding yearly 
-    if someAccount.compound_frequency == Frequency.ANNUALLY:
-        current_savings *= (1+someAccount.annual_investment_return)
+taxes_owed = calculate_annual_income_tax(user)
+post_tax_income = user.pre_tax_income  - taxes_owed #including 401k contributions
 
-    for month in range(12):
-        # compounding monthly
-        if someAccount.compound_frequency == Frequency.MONTHLY:
-            if someAccount.compound_type == MonthlyCompoundType.DIVIDE:
-                current_savings *= 1 + someAccount.annual_investment_return/12
-            elif someAccount.compound_type == MonthlyCompoundType.ROOT:
-                current_savings *= math.pow(1+ someAccount.annual_investment_return, 1/12)
+labels = 'Federal Income tax', 'Medicare Tax', 'Social Security Tax', 'Post-tax income'
+sizes = [calculate_annual_federal_income_tax(user), calculate_annual_medicare_tax(user), calculate_annual_social_security_tax(user), post_tax_income]
+ax2.pie(sizes, labels=labels)
+plt.show()
 
-        # monthly addition to investment account
-        if someAccount.regular_investment_frequency == Frequency.MONTHLY:
-            current_savings += someAccount.regular_investment_dollar * math.pow(math.pow(1 + someAccount.annual_investment_increase, 1/12), year*12+month)
+print(taxes_owed, post_tax_income)
 
-
-    # yearly addition to investment account
-    if someAccount.regular_investment_frequency == Frequency.ANNUALLY:
-        current_savings += someAccount.regular_investment_dollar * math.pow(1 + someAccount.annual_investment_increase, year)
-
-    #! for each data point, we need a label for that year
-    graph_labels.append(user.current_age + year)
-    graph_savings_values.append(current_savings)
-
-print(current_savings)
-
-# retirement phase (no social security)
-retirement_months = 0
-while current_savings >= someAccount.annual_retirement_expense/12:
-
-    # each month, subtract monthly "paycheck" and compound
-    months_since_today = (user.retirement_age - user.current_age) * 12 + retirement_months
-    current_savings -= adjust_for_inflation(someAccount.annual_retirement_expense/12, months_since_today, inflation_rate)
-    if someAccount.compound_frequency == Frequency.MONTHLY:
-        current_savings *= math.pow(1 + someAccount.annual_retirement_return, 1/12)
-    elif someAccount.compound_frequency == Frequency.ANNUALLY and retirement_months % 12 == 0:
-        current_savings *= 1 + someAccount.annual_retirement_return
-
-    # add to remaining months
-    retirement_months += 1
-
-    if retirement_months % 12 == 0:
-        graph_labels.append(user.current_age + year)
-        graph_savings_values.append(current_savings)
-
-print (retirement_months/12+user.retirement_age)
+# ! implement roth withdrawals vs 401k withdrawals given a post-tax retirement expense (retirement phase simulation)
+#   - expense is currently subtracted as a pre-tax value adjusted for inflation
+# ! add investment contributinos (401k and roth) to pie chart (part of post tax income)
+# ! allow user to add fixed costs, savings, other categories to split post_tax_income
