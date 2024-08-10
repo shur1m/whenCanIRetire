@@ -102,7 +102,7 @@ def simulate_account(account: Account):
 
     print('retirement withdrawal', annual_retirement_withdrawal)
 
-    # ! TODO binary search pre tax expense given post tax expense for Generic and Traditional account withdrawals, Roth withdrawals are not adjusted
+    # binary search pre tax expense given post tax expense for Generic and Traditional account withdrawals, Roth withdrawals are not adjusted
     while current_savings >= annual_retirement_withdrawal/12 and \
           account.owner.retirement_age + retirement_months//12 < account.owner.lifespan:
 

@@ -46,6 +46,10 @@ class Person:
     def add_account(self, account: Account, account_name: Optional[str] = None) -> None:
         if account_name is None:
             account_name = self._generate_account_name()
+
+        if account_name in self.accounts:
+            raise Exception("account names must be unique")
+        
         self.accounts[account_name] = account
         account.owner = self
 
