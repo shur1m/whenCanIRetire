@@ -4,17 +4,19 @@ from utils.parameters import Account, Person
 from utils.globals import GlobalParameters
 import matplotlib.pyplot as plt
 
-user = Person(pre_tax_income=115_000, retirement_age=65, lifespan=150)
+user = Person(pre_tax_income=115_000, retirement_age=65, lifespan=120)
+user.add_accumulation_expense('fixed costs', 3291, Frequency.MONTHLY)
+
 user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
                          regular_investment_dollar=23000/12,
                          annual_investment_increase=0.02,
                          account_type= AccountType.TRADITIONAL,
-                         annual_retirement_post_tax_expense=50_000), "401(k)")
+                         annual_retirement_post_tax_expense=70_000), "401(k)")
 user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
                          regular_investment_dollar=7000/12,
                          annual_investment_increase=0.02,
                          account_type= AccountType.ROTH,
-                         annual_retirement_post_tax_expense=50_000), "ROTH")
+                         annual_retirement_post_tax_expense=27_000), "ROTH")
 
 fig, (ax1, ax2) = plt.subplots(1, 2)
 
@@ -43,9 +45,11 @@ ax1.set_xlabel('age (years)')
 ax1.set_ylabel('investment savings (dollars)')
 
 # calculate and show income pie chart
+# add taxes
 pie_labels = ['Federal Income tax', 'Medicare Tax', 'Social Security Tax']
 pie_sizes = [calculate_annual_federal_income_tax(user), calculate_annual_medicare_tax(user), calculate_annual_social_security_tax(user)]
 
+# add account contributions
 for account_name, account in user.accounts.items():
     retirement_contributions: int
 
@@ -57,7 +61,11 @@ for account_name, account in user.accounts.items():
     pie_labels.append(account_name + ' contribution')
     pie_sizes.append(retirement_contributions)
 
-taxes_owed = calculate_annual_income_tax(user)
+# add other expenses
+for expense_name, expense in user.accumulation_phase_expenses.items():
+    pie_labels.append(expense_name)
+    pie_sizes.append(expense)
+
 remaining_income = user.pre_tax_income  - sum(pie_sizes) # annual value including 401k contributions
 pie_labels.append('Remaining Income')
 pie_sizes.append(remaining_income)

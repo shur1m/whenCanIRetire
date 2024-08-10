@@ -16,7 +16,7 @@ def calculate_annual_income_tax(user: Person) -> int:
 
 def calculate_annual_federal_income_tax(user: Person) -> int:
     taxable_income = user.get_taxable_income() - GlobalParameters.standard_tax_deduction \
-        if user.filing == Filing.INDIVIDUAL else GlobalParameters.join_tax_deduction
+        if user.filing == Filing.INDIVIDUAL else GlobalParameters.joint_tax_deduction
 
     # TODO implement joint filing tax brackets later
     taxes_owed = 0
@@ -122,6 +122,8 @@ def simulate_account(account: Account):
             graph_labels.append(account.owner.retirement_age + retirement_months//12)
             graph_savings_values.append(current_savings)
 
-    graph_labels.append(account.owner.retirement_age + retirement_months//12 + 1)
-    graph_savings_values.append(max(current_savings, 0))
+
+    if current_savings < 0:
+        graph_labels.append(account.owner.retirement_age + retirement_months//12 + 1)
+        graph_savings_values.append(0)
     return graph_labels, graph_savings_values

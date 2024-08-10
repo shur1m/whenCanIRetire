@@ -31,8 +31,9 @@ class Person:
                  current_age: int = 22,
                  retirement_age: int= 65,
                  lifespan: int = 120,
-                 pre_tax_income: int = 115_000,
+                 pre_tax_income: int = 115_000, # annual value
                  additional_tax_deductions: int = 0,
+                 accumulation_phase_expenses: Optional[dict[str, int]] = None, # annual values
                  filing: Filing = Filing.INDIVIDUAL) -> None:
         
         self.current_age: int = current_age
@@ -40,6 +41,7 @@ class Person:
         self.lifespan = lifespan
         self.pre_tax_income = pre_tax_income
         self.tax_deductions = additional_tax_deductions
+        self.accumulation_phase_expenses = dict() if accumulation_phase_expenses is None else accumulation_phase_expenses
         self.filing = filing
         self.accounts: dict[str, Account] = dict()
     
@@ -62,6 +64,12 @@ class Person:
     def add_accounts(self, accounts: dict[str, Account]) -> None:
         for account_name, account in accounts.items:
             self.accounts[account_name] = account
+
+    def add_accumulation_expense(self, name: str, expense: int, frequency: Frequency = Frequency.MONTHLY):
+        if frequency == Frequency.MONTHLY:
+            self.accumulation_phase_expenses[name] = expense * 12
+        elif frequency == Frequency.ANNUALLY:
+            self.accumulation_phase_expenses[name] = expense
 
     def get_taxable_income(self) -> int:
         return self.pre_tax_income - self.tax_deductions
