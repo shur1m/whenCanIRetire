@@ -9,7 +9,7 @@ class Account:
                  annual_investment_increase: int = 0,
                  annual_investment_return: int = 0.07,
                  annual_retirement_return: int = 0.05,
-                 annual_retirement_expense: int = 72_000,
+                 annual_retirement_post_tax_expense: int = 72_000,
                  compound_frequency: Frequency = Frequency.MONTHLY,
                  compound_type: MonthlyCompoundType= MonthlyCompoundType.ROOT,
                  account_type: AccountType = AccountType.GENERIC) -> None:
@@ -21,7 +21,7 @@ class Account:
         self.annual_investment_increase: int = annual_investment_increase # percentage, how much you will contribute more next year
         self.annual_investment_return: int = annual_investment_return
         self.annual_retirement_return = annual_retirement_return
-        self.annual_retirement_expense = annual_retirement_expense
+        self.annual_retirement_post_tax_expense = annual_retirement_post_tax_expense
         self.compound_frequency: Frequency = compound_frequency
         self.compound_type: MonthlyCompoundType = compound_type
         self.account_type = account_type

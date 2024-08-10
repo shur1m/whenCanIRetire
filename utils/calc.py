@@ -1,5 +1,5 @@
 import math
-from utils.enums import Filing, Frequency, MonthlyCompoundType
+from utils.enums import AccountType, Filing, Frequency, MonthlyCompoundType
 from utils.parameters import Account, Person
 from utils.globals import GlobalParameters
 
@@ -45,6 +45,22 @@ def calculate_annual_medicare_tax(user: Person) -> int:
     
     return taxes_owed
 
+def calculate_pre_tax_income(post_tax_income: int):
+    # binary search
+    left = post_tax_income
+    right = post_tax_income * 5
+    pre_tax_income = right
+
+    # stop once error is smaller than cent
+    while abs(right - left) > 0.01:
+        pre_tax_income = left + (right - left) / 2
+        if pre_tax_income - calculate_annual_income_tax(Person(pre_tax_income=pre_tax_income)) > post_tax_income:
+            right = pre_tax_income
+        else:
+            left = pre_tax_income
+    
+    return round(pre_tax_income, 2)
+
 def simulate_account(account: Account):
     graph_labels = []
     graph_savings_values = []
@@ -73,7 +89,6 @@ def simulate_account(account: Account):
         if account.regular_investment_frequency == Frequency.ANNUALLY:
             current_savings += account.regular_investment_dollar * math.pow(1 + account.annual_investment_increase, year)
 
-        #! for each data point, we need a label for that year
         graph_labels.append(account.owner.current_age + year)
         graph_savings_values.append(current_savings)
 
@@ -81,12 +96,20 @@ def simulate_account(account: Account):
 
     # retirement phase (no social security)
     retirement_months = 0
-    while current_savings >= account.annual_retirement_expense/12 and \
+    annual_retirement_withdrawal = account.annual_retirement_post_tax_expense
+    if account.account_type == AccountType.GENERIC or account.account_type == AccountType.TRADITIONAL:
+        annual_retirement_withdrawal = calculate_pre_tax_income(annual_retirement_withdrawal)
+
+    print('retirement withdrawal', annual_retirement_withdrawal)
+
+    # ! TODO binary search pre tax expense given post tax expense for Generic and Traditional account withdrawals, Roth withdrawals are not adjusted
+    while current_savings >= annual_retirement_withdrawal/12 and \
           account.owner.retirement_age + retirement_months//12 < account.owner.lifespan:
 
         # each month, subtract monthly "paycheck" and compound
         months_since_today = (account.owner.retirement_age - account.owner.current_age) * 12 + retirement_months
-        current_savings -= adjust_for_inflation(account.annual_retirement_expense/12, months_since_today)
+        current_savings -= adjust_for_inflation(annual_retirement_withdrawal/12, months_since_today)
+        
         if account.compound_frequency == Frequency.MONTHLY:
             current_savings *= math.pow(1 + account.annual_retirement_return, 1/12)
         elif account.compound_frequency == Frequency.ANNUALLY and retirement_months % 12 == 0:
