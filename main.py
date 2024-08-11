@@ -4,7 +4,7 @@ from utils.parameters import Account, Person
 from utils.globals import GlobalParameters
 import matplotlib.pyplot as plt
 
-user = Person(pre_tax_income=115_000, retirement_age=65, lifespan=120)
+user = Person(pre_tax_income=115_000, retirement_age=65, lifespan=120, filing=Filing.INDIVIDUAL)
 user.add_accumulation_expense('fixed costs', 3291, Frequency.MONTHLY)
 
 user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
@@ -82,4 +82,5 @@ ax2.set_title('Annual Spending', fontweight='semibold')
 ax2.text(-1.2, -1.5,f'Total: ${sum(pie_sizes):.2f}', fontstyle='italic')
 plt.show()
 
-# ! allow user to add fixed costs, savings, other categories to split remaining costs
+# ! state tax, hsa account
+# ! nice to have: ui and dynamic changes

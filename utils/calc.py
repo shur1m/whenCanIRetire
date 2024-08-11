@@ -15,20 +15,21 @@ def calculate_annual_income_tax(user: Person) -> int:
     return calculate_annual_federal_income_tax(user) + calculate_annual_social_security_tax(user) + calculate_annual_medicare_tax(user)
 
 def calculate_annual_federal_income_tax(user: Person) -> int:
-    taxable_income = user.get_taxable_income() - GlobalParameters.standard_tax_deduction \
-        if user.filing == Filing.INDIVIDUAL else GlobalParameters.joint_tax_deduction
+    taxable_income = user.get_taxable_income() - (GlobalParameters.standard_tax_deduction \
+        if user.filing == Filing.INDIVIDUAL else GlobalParameters.joint_tax_deduction)
 
-    # TODO implement joint filing tax brackets later
     taxes_owed = 0
-    for i in range(len(GlobalParameters.individual_tax_brackets)):
-        tax_percent, floor_value = GlobalParameters.individual_tax_brackets[i]
-        ceiling_value = GlobalParameters.individual_tax_brackets[i+1][1] - 1 if i+1 < len(GlobalParameters.individual_tax_brackets) else math.inf
+    tax_brackets = GlobalParameters.individual_tax_brackets if user.filing == Filing.INDIVIDUAL else GlobalParameters.joint_tax_brackets
+    for i in range(len(tax_brackets)):
+        tax_percent, floor_value = tax_brackets[i]
+        ceiling_value = tax_brackets[i+1][1] - 1 if i+1 < len(tax_brackets) else math.inf
         if taxable_income > ceiling_value:
             taxes_owed += (ceiling_value - floor_value) * tax_percent
         elif taxable_income <= floor_value:
             break
         else:
             taxes_owed += (taxable_income - floor_value) * tax_percent
+    
     return taxes_owed
 
 def calculate_annual_social_security_tax(user: Person) -> int:
@@ -99,8 +100,6 @@ def simulate_account(account: Account):
     annual_retirement_withdrawal = account.annual_retirement_post_tax_expense
     if account.account_type == AccountType.GENERIC or account.account_type == AccountType.TRADITIONAL:
         annual_retirement_withdrawal = calculate_pre_tax_income(annual_retirement_withdrawal)
-
-    print('retirement withdrawal', annual_retirement_withdrawal)
 
     # binary search pre tax expense given post tax expense for Generic and Traditional account withdrawals, Roth withdrawals are not adjusted
     while current_savings >= annual_retirement_withdrawal/12 and \
