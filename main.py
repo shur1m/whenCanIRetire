@@ -1,22 +1,22 @@
-from utils.calc import calculate_annual_income_tax, calculate_pre_tax_income, simulate_account, calculate_annual_federal_income_tax, calculate_annual_social_security_tax, calculate_annual_medicare_tax
-from utils.enums import AccountType, Filing, Frequency, MonthlyCompoundType
+from utils.calc import calculate_annual_income_tax, calculate_annual_state_income_tax, calculate_pre_tax_income, simulate_account, calculate_annual_federal_income_tax, calculate_annual_social_security_tax, calculate_annual_medicare_tax
+from utils.enums import AccountType, Filing, Frequency, MonthlyCompoundType, State
 from utils.parameters import Account, Person
 from utils.globals import GlobalParameters
 import matplotlib.pyplot as plt
 
-user = Person(pre_tax_income=115_000, retirement_age=65, lifespan=120, filing=Filing.INDIVIDUAL)
-user.add_accumulation_expense('fixed costs', 3291, Frequency.MONTHLY)
+user = Person(pre_tax_income=115_000, retirement_age=65, lifespan=120, filing=Filing.INDIVIDUAL, state_of_residence=State.CALIFORNIA)
+# user.add_accumulation_expense('fixed costs', 3291, Frequency.MONTHLY)
 
-user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-                         regular_investment_dollar=23000/12,
-                         annual_investment_increase=0.02,
-                         account_type= AccountType.TRADITIONAL,
-                         annual_retirement_post_tax_expense=70_000), "401(k)")
-user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-                         regular_investment_dollar=7000/12,
-                         annual_investment_increase=0.02,
-                         account_type= AccountType.ROTH,
-                         annual_retirement_post_tax_expense=27_000), "ROTH")
+# user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
+#                          regular_investment_dollar=23000/12,
+#                          annual_investment_increase=0.02,
+#                          account_type= AccountType.TRADITIONAL,
+#                          annual_retirement_post_tax_expense=70_000), "401(k)")
+# user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
+#                          regular_investment_dollar=7000/12,
+#                          annual_investment_increase=0.02,
+#                          account_type= AccountType.ROTH,
+#                          annual_retirement_post_tax_expense=27_000), "ROTH")
 
 fig, (ax1, ax2) = plt.subplots(1, 2)
 
@@ -49,6 +49,10 @@ ax1.set_ylabel('investment savings (dollars)')
 pie_labels = ['Federal Income tax', 'Medicare Tax', 'Social Security Tax']
 pie_sizes = [calculate_annual_federal_income_tax(user), calculate_annual_medicare_tax(user), calculate_annual_social_security_tax(user)]
 
+if calculate_annual_state_income_tax(user) > 0:
+    pie_labels.append('State Tax')
+    pie_sizes.append(calculate_annual_state_income_tax(user))
+
 # add account contributions
 for account_name, account in user.accounts.items():
     retirement_contributions: int
@@ -74,13 +78,19 @@ def autopct_format(values):
     def percent_and_dollar_value(pct):
         total = sum(values)
         val = pct/100 * total
-        return '{:.1f}% (${:.2f})'.format(pct, val)
+        return '{:.2f}% (${:.2f})'.format(pct, val)
     return percent_and_dollar_value
 
-ax2.pie(pie_sizes, labels=pie_labels, autopct=autopct_format(pie_sizes))
+handles, texts, autopcts = ax2.pie(pie_sizes, labels=pie_labels, autopct=autopct_format(pie_sizes), explode=[0.03*i for i in range(len(pie_sizes))])
 ax2.set_title('Annual Spending', fontweight='semibold')
 ax2.text(-1.2, -1.5,f'Total: ${sum(pie_sizes):.2f}', fontstyle='italic')
+# plt.setp(autopcts, fontsize=5)
 plt.show()
 
-# ! state tax, hsa account
-# ! nice to have: ui and dynamic changes
+print([(name, size) for (name,size) in zip(pie_labels, pie_sizes)])
+
+# ! hsa account (hsa not subject to fica or income tax, can be subject to taxes if withdrawn after 65 to be used on normal stuff)
+# ! allow user to set timespan during the accumulation phase where they are contributing
+#  - (useful for hsa where only young people can contribute because they are healthy)
+# ! allow user to set timespan during retirement phase where they are withdrawing
+# ! nice to have: ui and dynamic changes, options for bankers rounding vs normal rounding to whole numbers

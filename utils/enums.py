@@ -15,3 +15,7 @@ class AccountType(Enum):
 class Filing(Enum):
     INDIVIDUAL = 1
     JOINT = 2
+
+class State(Enum):
+    TEXAS = 1
+    CALIFORNIA = 2

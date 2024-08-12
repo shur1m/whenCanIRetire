@@ -1,5 +1,5 @@
 from typing import Optional
-from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType
+from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State
 
 class Account:
     def __init__(self,
@@ -34,6 +34,7 @@ class Person:
                  pre_tax_income: int = 115_000, # annual value
                  additional_tax_deductions: int = 0,
                  accumulation_phase_expenses: Optional[dict[str, int]] = None, # annual values
+                 state_of_residence: Optional[State] = None,
                  filing: Filing = Filing.INDIVIDUAL) -> None:
         
         self.current_age: int = current_age
@@ -42,6 +43,7 @@ class Person:
         self.pre_tax_income = pre_tax_income
         self.tax_deductions = additional_tax_deductions
         self.accumulation_phase_expenses = dict() if accumulation_phase_expenses is None else accumulation_phase_expenses
+        self.state_of_residence = state_of_residence
         self.filing = filing
         self.accounts: dict[str, Account] = dict()
     
@@ -71,6 +73,7 @@ class Person:
         elif frequency == Frequency.ANNUALLY:
             self.accumulation_phase_expenses[name] = expense
 
+    # taxable income in terms of federal income tax
     def get_taxable_income(self) -> int:
         return self.pre_tax_income - self.tax_deductions
     
