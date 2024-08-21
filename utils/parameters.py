@@ -32,7 +32,7 @@ class Person:
                  retirement_age: int= 65,
                  lifespan: int = 120,
                  pre_tax_income: int = 115_000, # annual value
-                 additional_tax_deductions: int = 0,
+                 additional_income_tax_deductions: int = 0, # subtracted from taxable income (income tax)
                  accumulation_phase_expenses: Optional[dict[str, int]] = None, # annual values
                  state_of_residence: Optional[State] = None,
                  filing: Filing = Filing.INDIVIDUAL) -> None:
@@ -41,7 +41,7 @@ class Person:
         self.retirement_age: int = retirement_age
         self.lifespan = lifespan
         self.pre_tax_income = pre_tax_income
-        self.tax_deductions = additional_tax_deductions
+        self.income_tax_deductions = additional_income_tax_deductions
         self.accumulation_phase_expenses = dict() if accumulation_phase_expenses is None else accumulation_phase_expenses
         self.state_of_residence = state_of_residence
         self.filing = filing
@@ -57,11 +57,11 @@ class Person:
         self.accounts[account_name] = account
         account.owner = self
 
-        if account.account_type == AccountType.TRADITIONAL:
+        if account.account_type == AccountType.TRADITIONAL or account.account_type == AccountType.HSA:
             if account.regular_investment_frequency == Frequency.MONTHLY:
-                self.tax_deductions += account.regular_investment_dollar * 12
+                self.income_tax_deductions += account.regular_investment_dollar * 12
             elif account.regular_investment_frequency == Frequency.ANNUALLY:
-                self.tax_deductions += account.regular_investment_dollar
+                self.income_tax_deductions += account.regular_investment_dollar
 
     def add_accounts(self, accounts: dict[str, Account]) -> None:
         for account_name, account in accounts.items:
@@ -73,9 +73,22 @@ class Person:
         elif frequency == Frequency.ANNUALLY:
             self.accumulation_phase_expenses[name] = expense
 
-    # taxable income in terms of federal income tax
     def get_taxable_income(self) -> int:
-        return self.pre_tax_income - self.tax_deductions
+        '''returns income that is subject to federal income tax'''
+        return self.pre_tax_income - self.income_tax_deductions
+    
+    def get_fica_taxable_income(self) -> int:
+        '''returns income that is subject to FICA (medicare/social security taxes)'''
+        total_hsa_contribution = 0
+        for _, account in self.accounts.items():
+            if account.account_type == AccountType.HSA:
+                if account.regular_investment_frequency == Frequency.ANNUALLY:
+                    total_hsa_contribution += account.regular_investment_dollar
+
+                if account.regular_investment_frequency == Frequency.MONTHLY:
+                    total_hsa_contribution += account.regular_investment_dollar * 12
+
+        return self.pre_tax_income - total_hsa_contribution  # todo calculate this by subtracting HSA contributions and change how FICA taxes are calculated pre_tax_income -> fica taxable
     
     def _generate_account_name(self) -> str:
         return 'account_' + str(len(self.accounts))

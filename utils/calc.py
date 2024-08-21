@@ -27,7 +27,7 @@ def calculate_annual_state_income_tax(user:Person) -> int:
         return 0
 
     if user.state_of_residence == State.CALIFORNIA:
-        SDI_tax = 0.011 * (user.pre_tax_income - tax_deduction) # SDI tax applies to 401(k) contributions
+        SDI_tax = 0.011 * (user.pre_tax_income - tax_deduction) # SDI tax applies to 401(k) contributions #?not sure if this applies to HSA contributions, although insignificant
         MHS_tax = 0.01 * (user.get_taxable_income() - tax_deduction) if user.get_taxable_income() > 1_000_000 else 0# mental health services tax TODO need to change this to 2million for joint filers
         additional_state_tax += SDI_tax + MHS_tax
 
@@ -52,16 +52,16 @@ def _calculate_annual_income_tax(user: Person, tax_brackets: list[tuple[int, int
     return taxes_owed
 
 def calculate_annual_social_security_tax(user: Person) -> int:
-    social_security_taxable_income = min(user.pre_tax_income, GlobalParameters.social_security_max_taxable)
+    social_security_taxable_income = min(user.get_fica_taxable_income(), GlobalParameters.social_security_max_taxable)
     return social_security_taxable_income * GlobalParameters.social_security_tax_percent
 
 def calculate_annual_medicare_tax(user: Person) -> int:
     taxes_owed = 0
     medicare_high_earner_salary = GlobalParameters.medicare_high_earner_salary_individual \
         if user.filing == Filing.INDIVIDUAL else GlobalParameters.medicare_high_earner_salary_joint
-    taxes_owed += user.pre_tax_income * GlobalParameters.medicare_tax
-    if user.pre_tax_income > medicare_high_earner_salary:
-        taxes_owed += (user.pre_tax_income - medicare_high_earner_salary) * GlobalParameters.medicare_high_earner_tax
+    taxes_owed += user.get_fica_taxable_income() * GlobalParameters.medicare_tax
+    if user.get_fica_taxable_income() > medicare_high_earner_salary:
+        taxes_owed += (user.get_fica_taxable_income() - medicare_high_earner_salary) * GlobalParameters.medicare_high_earner_tax
     
     return taxes_owed
 
@@ -117,10 +117,11 @@ def simulate_account(account: Account):
     # retirement phase (no social security)
     retirement_months = 0
     annual_retirement_withdrawal = account.annual_retirement_post_tax_expense
+    
+    # binary search pre tax expense given post tax expense for Generic and Traditional account withdrawals, Roth/HSA withdrawals are not adjusted
     if account.account_type == AccountType.GENERIC or account.account_type == AccountType.TRADITIONAL:
         annual_retirement_withdrawal = calculate_pre_tax_income(annual_retirement_withdrawal)
 
-    # binary search pre tax expense given post tax expense for Generic and Traditional account withdrawals, Roth withdrawals are not adjusted
     while current_savings >= annual_retirement_withdrawal/12 and \
           account.owner.retirement_age + retirement_months//12 < account.owner.lifespan:
 

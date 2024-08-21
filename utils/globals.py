@@ -2,7 +2,7 @@ class GlobalParameters:
     inflation_rate: int = 0.03
 
     # federal tax brackets (percentage, floor/bottom value of bracket)
-    fed_individual_tax_brackets: list[tuple[int, int]] = [(0.10, 0), (0.12, 11_001), (0.22, 44_726), (0.24, 95_376), (0.32, 182_101), (0.35, 231_251), (0.37, 578_126)] # (percent, bottom value)
+    fed_individual_tax_brackets: list[tuple[int, int]] = [(0.10, 0), (0.12, 11_601), (0.22, 47_151), (0.24, 100_526), (0.32, 191_951), (0.35, 243_726), (0.37, 609_351)] # (percent, bottom value)
     fed_joint_tax_brackets: list[tuple[int, int]] = [(0.10, 0), (0.12, 22_001), (0.22, 89_451), (0.24, 190_751), (0.32, 364_201), (0.35, 462_501), (0.37, 693_751)] # (percent, bottom value)
     standard_tax_deduction: int = 13_850
     joint_tax_deduction: int = 27_700

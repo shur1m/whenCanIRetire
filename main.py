@@ -1,4 +1,4 @@
-from utils.calc import calculate_annual_income_tax, calculate_annual_state_income_tax, calculate_pre_tax_income, simulate_account, calculate_annual_federal_income_tax, calculate_annual_social_security_tax, calculate_annual_medicare_tax
+from utils.calc import calculate_annual_income_tax, calculate_annual_state_income_tax, simulate_account, calculate_annual_federal_income_tax, calculate_annual_social_security_tax, calculate_annual_medicare_tax
 from utils.enums import AccountType, Filing, Frequency, MonthlyCompoundType, State
 from utils.parameters import Account, Person
 from utils.globals import GlobalParameters
@@ -14,8 +14,9 @@ user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
 user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
                          regular_investment_dollar=4150/12,
                          annual_investment_increase=0.02,
-                         account_type= AccountType.TRADITIONAL,
-                         annual_retirement_post_tax_expense=14_500), "HSA")
+                         account_type= AccountType.HSA,
+                         annual_retirement_post_tax_expense=15_000), "HSA")
+
 # user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
 #                          regular_investment_dollar=7000/12,
 #                          annual_investment_increase=0.02,
@@ -92,9 +93,12 @@ ax2.text(-1.2, -1.5,f'Total: ${sum(pie_sizes):.2f}', fontstyle='italic')
 plt.show()
 
 print([(name, size) for (name,size) in zip(pie_labels, pie_sizes)])
+print(user.get_fica_taxable_income())
 
+# ! refactor code: move above code into two sections (set_initial_values, generate graphs -> income distribution & investment growth)
 # ! show how much money withdrawn from each account during retirement phase
 # ! automatically calculate retirement expense to end at life expectancy
+# ! calculate how much money is "saved" by contributing to traditional IRAs
 # ! hsa account (hsa not subject to fica or income tax, can be subject to taxes if withdrawn after 65 to be used on normal stuff)
 # ! allow user to set timespan during the accumulation phase where they are contributing
 #  - (useful for hsa where only young people can contribute because they are healthy)

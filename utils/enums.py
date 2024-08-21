@@ -11,6 +11,7 @@ class AccountType(Enum):
     GENERIC = 1
     PRETAX = TRADITIONAL = 2
     ROTH = 3
+    HSA = 4
 
 class Filing(Enum):
     INDIVIDUAL = 1
