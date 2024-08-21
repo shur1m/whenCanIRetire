@@ -4,14 +4,18 @@ from utils.parameters import Account, Person
 from utils.globals import GlobalParameters
 import matplotlib.pyplot as plt
 
-user = Person(pre_tax_income=115_000, retirement_age=65, lifespan=120, filing=Filing.INDIVIDUAL, state_of_residence=State.CALIFORNIA)
-# user.add_accumulation_expense('fixed costs', 3291, Frequency.MONTHLY)
-
-# user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-#                          regular_investment_dollar=23000/12,
-#                          annual_investment_increase=0.02,
-#                          account_type= AccountType.TRADITIONAL,
-#                          annual_retirement_post_tax_expense=70_000), "401(k)")
+user = Person(pre_tax_income=115_000, retirement_age=65, lifespan=120, filing=Filing.INDIVIDUAL, state_of_residence=State.TEXAS)
+user.add_accumulation_expense('fixed costs', 2_475.07*1.15, Frequency.MONTHLY)
+user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
+                         regular_investment_dollar=23000/12,
+                         annual_investment_increase=0.02,
+                         account_type= AccountType.TRADITIONAL,
+                         annual_retirement_post_tax_expense=70_000), "401(k)")
+user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
+                         regular_investment_dollar=4150/12,
+                         annual_investment_increase=0.02,
+                         account_type= AccountType.TRADITIONAL,
+                         annual_retirement_post_tax_expense=14_500), "HSA")
 # user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
 #                          regular_investment_dollar=7000/12,
 #                          annual_investment_increase=0.02,
@@ -81,7 +85,7 @@ def autopct_format(values):
         return '{:.2f}% (${:.2f})'.format(pct, val)
     return percent_and_dollar_value
 
-handles, texts, autopcts = ax2.pie(pie_sizes, labels=pie_labels, autopct=autopct_format(pie_sizes), explode=[0.03*i for i in range(len(pie_sizes))])
+handles, texts, autopcts = ax2.pie(pie_sizes, labels=pie_labels, autopct=autopct_format(pie_sizes), explode=[0.02 for _ in range(len(pie_sizes))])
 ax2.set_title('Annual Spending', fontweight='semibold')
 ax2.text(-1.2, -1.5,f'Total: ${sum(pie_sizes):.2f}', fontstyle='italic')
 # plt.setp(autopcts, fontsize=5)
@@ -89,6 +93,8 @@ plt.show()
 
 print([(name, size) for (name,size) in zip(pie_labels, pie_sizes)])
 
+# ! show how much money withdrawn from each account during retirement phase
+# ! automatically calculate retirement expense to end at life expectancy
 # ! hsa account (hsa not subject to fica or income tax, can be subject to taxes if withdrawn after 65 to be used on normal stuff)
 # ! allow user to set timespan during the accumulation phase where they are contributing
 #  - (useful for hsa where only young people can contribute because they are healthy)
