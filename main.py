@@ -99,7 +99,6 @@ print(user.get_fica_taxable_income())
 # ! show how much money withdrawn from each account during retirement phase
 # ! automatically calculate retirement expense to end at life expectancy
 # ! calculate how much money is "saved" by contributing to traditional IRAs
-# ! hsa account (hsa not subject to fica or income tax, can be subject to taxes if withdrawn after 65 to be used on normal stuff)
 # ! allow user to set timespan during the accumulation phase where they are contributing
 #  - (useful for hsa where only young people can contribute because they are healthy)
 # ! allow user to set timespan during retirement phase where they are withdrawing
