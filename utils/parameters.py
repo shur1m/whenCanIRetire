@@ -73,8 +73,8 @@ class Person:
         elif frequency == Frequency.ANNUALLY:
             self.accumulation_phase_expenses[name] = expense
 
-    def get_taxable_income(self) -> int:
-        '''returns income that is subject to federal income tax'''
+    def get_reduced_income(self) -> int:
+        '''returns income after subtracting 401(k) and HSA deductions'''
         return self.pre_tax_income - self.income_tax_deductions
     
     def get_fica_taxable_income(self) -> int:

@@ -28,7 +28,7 @@ def calculate_annual_state_income_tax(user:Person) -> int:
 
     if user.state_of_residence == State.CALIFORNIA:
         SDI_tax = 0.011 * (user.pre_tax_income - tax_deduction) # SDI tax applies to 401(k) contributions #?not sure if this applies to HSA contributions, although insignificant
-        MHS_tax = 0.01 * (user.get_taxable_income() - tax_deduction) if user.get_taxable_income() > 1_000_000 else 0# mental health services tax TODO need to change this to 2million for joint filers
+        MHS_tax = 0.01 * (user.get_reduced_income() - tax_deduction) if user.get_reduced_income() > 1_000_000 else 0# mental health services tax TODO need to change this to 2million for joint filers
         additional_state_tax += SDI_tax + MHS_tax
 
     return additional_state_tax + _calculate_annual_income_tax(user,
@@ -36,7 +36,7 @@ def calculate_annual_state_income_tax(user:Person) -> int:
                           tax_deduction=tax_deduction)
 
 def _calculate_annual_income_tax(user: Person, tax_brackets: list[tuple[int, int]], tax_deduction: int) -> int:
-    taxable_income = user.get_taxable_income() - tax_deduction
+    taxable_income = user.get_reduced_income() - tax_deduction
 
     taxes_owed = 0
     for i in range(len(tax_brackets)):

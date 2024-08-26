@@ -25,7 +25,6 @@ def generate_investment_growth_graph(user: Person, ax: Axes):
             total_savings_graph_values[i] += graph_savings_values[i]
 
     ax.plot(total_savings_graph_labels, total_savings_graph_values, label='Total Savings')
-
     ax.set_title('Retirement Savings', fontweight='semibold')
     ax.legend(loc='best')
     ax.set_xlabel('age (years)')
@@ -69,9 +68,16 @@ def generate_income_distribution_graph(user: Person, ax: Axes):
             return '{:.2f}% (${:.2f})'.format(pct, val)
         return percent_and_dollar_value
 
-    handles, texts, autopcts = ax.pie(pie_sizes, labels=pie_labels, autopct=autopct_format(pie_sizes), explode=[0.02 for _ in range(len(pie_sizes))])
+
+    # calculate post tax income  without 401k/hsa deductions
+    no_deduction_user = copy.copy(user)
+    no_deduction_user.accounts = dict()
+    no_deduction_user.income_tax_deductions = 0
+    retirement_deductions_excess = calculate_annual_income_tax(no_deduction_user) - calculate_annual_income_tax(user)
+    
+    ax.pie(pie_sizes, labels=pie_labels, autopct=autopct_format(pie_sizes), explode=[0.02 for _ in range(len(pie_sizes))])
     ax.set_title('Annual Spending', fontweight='semibold')
-    ax.text(-1.2, -1.5,f'Total: ${sum(pie_sizes):.2f}', fontstyle='italic')
+    ax.text(-1.2, -1.5,f'Total: ${sum(pie_sizes):.2f}\nTaxes saved by retirement accounts: ${retirement_deductions_excess:.2f}', fontstyle='italic')
 
     print([(name, size) for (name,size) in zip(pie_labels, pie_sizes)])
 
@@ -79,21 +85,34 @@ def main():
     user = Person(pre_tax_income=115_000, retirement_age=65, lifespan=120, filing=Filing.INDIVIDUAL, state_of_residence=State.TEXAS)
     user.add_accumulation_expense('fixed costs', 2_475.07*1.15, Frequency.MONTHLY)
     user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-                            regular_investment_dollar=23000/12,
-                            annual_investment_increase=0.02,
-                            account_type= AccountType.TRADITIONAL,
-                            annual_retirement_post_tax_expense=70_000), "401(k)")
-    user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
                             regular_investment_dollar=4150/12,
                             annual_investment_increase=0.02,
                             account_type= AccountType.HSA,
-                            annual_retirement_post_tax_expense=15_000), "HSA")
-
+                            annual_retirement_post_tax_expense=16_000), "HSA")
+    
+    # option 1
     # user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-    #                          regular_investment_dollar=7000/12,
+    #                         regular_investment_dollar=22500/12,
+    #                         annual_investment_increase=0.02,
+    #                         account_type= AccountType.TRADITIONAL,
+    #                         annual_retirement_post_tax_expense=70_000), "401(k)")
+    # user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
+    #                          regular_investment_dollar=7_000/12,
     #                          annual_investment_increase=0.02,
-    #                          account_type= AccountType.ROTH,
-    #                          annual_retirement_post_tax_expense=27_000), "ROTH")
+    #                          account_type=AccountType.ROTH,
+    #                          annual_retirement_post_tax_expense=27_000), "ROTH IRA")
+
+    # options 2
+    user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
+                             regular_investment_dollar=22500/12,
+                             annual_investment_increase=0.02,
+                             account_type= AccountType.ROTH,
+                             annual_retirement_post_tax_expense=88_000), "ROTH")
+    user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
+                             regular_investment_dollar=2050/12,
+                             annual_investment_increase=0.02,
+                             account_type=AccountType.ROTH,
+                             annual_retirement_post_tax_expense=8_000), "ROTH IRA")
 
     fig, (ax1, ax2) = plt.subplots(1, 2)
     generate_investment_growth_graph(user, ax1)
@@ -103,7 +122,8 @@ def main():
 if __name__ == "__main__":
     main()
 
-# ! calculate how much money is "saved" by contributing to traditional IRAs
+# ! calculate how much to withdraw each year from account in order to end at the death age
+#   - should be a toggle in account T/F
 # ! show how much money withdrawn from each account during retirement phase
 # ! automatically calculate retirement expense to end at life expectancy
 # ! allow user to set timespan during the accumulation phase where they are contributing
