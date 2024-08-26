@@ -1,104 +1,111 @@
+from matplotlib.axes import Axes
 from utils.calc import calculate_annual_income_tax, calculate_annual_state_income_tax, simulate_account, calculate_annual_federal_income_tax, calculate_annual_social_security_tax, calculate_annual_medicare_tax
 from utils.enums import AccountType, Filing, Frequency, MonthlyCompoundType, State
 from utils.parameters import Account, Person
 from utils.globals import GlobalParameters
 import matplotlib.pyplot as plt
+import copy
 
-user = Person(pre_tax_income=115_000, retirement_age=65, lifespan=120, filing=Filing.INDIVIDUAL, state_of_residence=State.TEXAS)
-user.add_accumulation_expense('fixed costs', 2_475.07*1.15, Frequency.MONTHLY)
-user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-                         regular_investment_dollar=23000/12,
-                         annual_investment_increase=0.02,
-                         account_type= AccountType.TRADITIONAL,
-                         annual_retirement_post_tax_expense=70_000), "401(k)")
-user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-                         regular_investment_dollar=4150/12,
-                         annual_investment_increase=0.02,
-                         account_type= AccountType.HSA,
-                         annual_retirement_post_tax_expense=15_000), "HSA")
+def generate_investment_growth_graph(user: Person, ax: Axes):
+    # calculate and show retirement simulation
+    total_savings_graph_labels = []
+    total_savings_graph_values = []
 
-# user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-#                          regular_investment_dollar=7000/12,
-#                          annual_investment_increase=0.02,
-#                          account_type= AccountType.ROTH,
-#                          annual_retirement_post_tax_expense=27_000), "ROTH")
+    for account_name, account in user.accounts.items():
+        graph_labels, graph_savings_values = simulate_account(user.accounts[account_name])
+        ax.plot(graph_labels, graph_savings_values, label=account_name)
+        
+        if len(graph_labels) > len(total_savings_graph_labels):
+            total_savings_graph_labels = graph_labels
 
-fig, (ax1, ax2) = plt.subplots(1, 2)
+        # add to total
+        for i in range(len(graph_savings_values)):
+            if i >= len(total_savings_graph_values):
+                total_savings_graph_values.append(0)
+            total_savings_graph_values[i] += graph_savings_values[i]
 
-# calculate and show retirement simulation
-total_savings_graph_labels = []
-total_savings_graph_values = []
+    ax.plot(total_savings_graph_labels, total_savings_graph_values, label='Total Savings')
 
-for account_name, account in user.accounts.items():
-    graph_labels, graph_savings_values = simulate_account(user.accounts[account_name])
-    ax1.plot(graph_labels, graph_savings_values, label=account_name)
-    
-    if len(graph_labels) > len(total_savings_graph_labels):
-        total_savings_graph_labels = graph_labels
+    ax.set_title('Retirement Savings', fontweight='semibold')
+    ax.legend(loc='best')
+    ax.set_xlabel('age (years)')
+    ax.set_ylabel('investment savings (dollars)')
 
-    # add to total
-    for i in range(len(graph_savings_values)):
-        if i >= len(total_savings_graph_values):
-            total_savings_graph_values.append(0)
-        total_savings_graph_values[i] += graph_savings_values[i]
+def generate_income_distribution_graph(user: Person, ax: Axes):
+    # calculate and show income pie chart
+    # add taxes
+    pie_labels = ['Federal Income tax', 'Medicare Tax', 'Social Security Tax']
+    pie_sizes = [calculate_annual_federal_income_tax(user), calculate_annual_medicare_tax(user), calculate_annual_social_security_tax(user)]
 
-ax1.plot(total_savings_graph_labels, total_savings_graph_values, label='Total Savings')
+    if calculate_annual_state_income_tax(user) > 0:
+        pie_labels.append('State Tax')
+        pie_sizes.append(calculate_annual_state_income_tax(user))
 
-ax1.set_title('Retirement Savings', fontweight='semibold')
-ax1.legend(loc='best')
-ax1.set_xlabel('age (years)')
-ax1.set_ylabel('investment savings (dollars)')
+    # add account contributions
+    for account_name, account in user.accounts.items():
+        retirement_contributions: int
 
-# calculate and show income pie chart
-# add taxes
-pie_labels = ['Federal Income tax', 'Medicare Tax', 'Social Security Tax']
-pie_sizes = [calculate_annual_federal_income_tax(user), calculate_annual_medicare_tax(user), calculate_annual_social_security_tax(user)]
+        if account.regular_investment_frequency == Frequency.MONTHLY:
+            retirement_contributions = account.regular_investment_dollar * 12
+        elif account.regular_investment_frequency == Frequency.ANNUALLY:
+            retirement_contributions = account.regular_investment_dollar
 
-if calculate_annual_state_income_tax(user) > 0:
-    pie_labels.append('State Tax')
-    pie_sizes.append(calculate_annual_state_income_tax(user))
+        pie_labels.append(account_name + ' contribution')
+        pie_sizes.append(retirement_contributions)
 
-# add account contributions
-for account_name, account in user.accounts.items():
-    retirement_contributions: int
+    # add other expenses
+    for expense_name, expense in user.accumulation_phase_expenses.items():
+        pie_labels.append(expense_name)
+        pie_sizes.append(expense)
 
-    if account.regular_investment_frequency == Frequency.MONTHLY:
-        retirement_contributions = account.regular_investment_dollar * 12
-    elif account.regular_investment_frequency == Frequency.ANNUALLY:
-        retirement_contributions = account.regular_investment_dollar
+    remaining_income = user.pre_tax_income  - sum(pie_sizes) # annual value including 401k contributions
+    pie_labels.append('Remaining Income')
+    pie_sizes.append(remaining_income)
 
-    pie_labels.append(account_name + ' contribution')
-    pie_sizes.append(retirement_contributions)
+    def autopct_format(values):
+        def percent_and_dollar_value(pct):
+            total = sum(values)
+            val = pct/100 * total
+            return '{:.2f}% (${:.2f})'.format(pct, val)
+        return percent_and_dollar_value
 
-# add other expenses
-for expense_name, expense in user.accumulation_phase_expenses.items():
-    pie_labels.append(expense_name)
-    pie_sizes.append(expense)
+    handles, texts, autopcts = ax.pie(pie_sizes, labels=pie_labels, autopct=autopct_format(pie_sizes), explode=[0.02 for _ in range(len(pie_sizes))])
+    ax.set_title('Annual Spending', fontweight='semibold')
+    ax.text(-1.2, -1.5,f'Total: ${sum(pie_sizes):.2f}', fontstyle='italic')
 
-remaining_income = user.pre_tax_income  - sum(pie_sizes) # annual value including 401k contributions
-pie_labels.append('Remaining Income')
-pie_sizes.append(remaining_income)
+    print([(name, size) for (name,size) in zip(pie_labels, pie_sizes)])
 
-def autopct_format(values):
-    def percent_and_dollar_value(pct):
-        total = sum(values)
-        val = pct/100 * total
-        return '{:.2f}% (${:.2f})'.format(pct, val)
-    return percent_and_dollar_value
+def main():
+    user = Person(pre_tax_income=115_000, retirement_age=65, lifespan=120, filing=Filing.INDIVIDUAL, state_of_residence=State.TEXAS)
+    user.add_accumulation_expense('fixed costs', 2_475.07*1.15, Frequency.MONTHLY)
+    user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
+                            regular_investment_dollar=23000/12,
+                            annual_investment_increase=0.02,
+                            account_type= AccountType.TRADITIONAL,
+                            annual_retirement_post_tax_expense=70_000), "401(k)")
+    user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
+                            regular_investment_dollar=4150/12,
+                            annual_investment_increase=0.02,
+                            account_type= AccountType.HSA,
+                            annual_retirement_post_tax_expense=15_000), "HSA")
 
-handles, texts, autopcts = ax2.pie(pie_sizes, labels=pie_labels, autopct=autopct_format(pie_sizes), explode=[0.02 for _ in range(len(pie_sizes))])
-ax2.set_title('Annual Spending', fontweight='semibold')
-ax2.text(-1.2, -1.5,f'Total: ${sum(pie_sizes):.2f}', fontstyle='italic')
-# plt.setp(autopcts, fontsize=5)
-plt.show()
+    # user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
+    #                          regular_investment_dollar=7000/12,
+    #                          annual_investment_increase=0.02,
+    #                          account_type= AccountType.ROTH,
+    #                          annual_retirement_post_tax_expense=27_000), "ROTH")
 
-print([(name, size) for (name,size) in zip(pie_labels, pie_sizes)])
-print(user.get_fica_taxable_income())
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+    generate_investment_growth_graph(user, ax1)
+    generate_income_distribution_graph(user, ax2)
+    plt.show()
 
-# ! refactor code: move above code into two sections (set_initial_values, generate graphs -> income distribution & investment growth)
+if __name__ == "__main__":
+    main()
+
+# ! calculate how much money is "saved" by contributing to traditional IRAs
 # ! show how much money withdrawn from each account during retirement phase
 # ! automatically calculate retirement expense to end at life expectancy
-# ! calculate how much money is "saved" by contributing to traditional IRAs
 # ! allow user to set timespan during the accumulation phase where they are contributing
 #  - (useful for hsa where only young people can contribute because they are healthy)
 # ! allow user to set timespan during retirement phase where they are withdrawing
