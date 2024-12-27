@@ -17,7 +17,7 @@ def calculate_annual_income_tax(user: Person) -> int:
 def calculate_annual_federal_income_tax(user: Person) -> int:
     return _calculate_annual_income_tax(user,
                           tax_brackets = GlobalParameters.fed_individual_tax_brackets if user.filing == Filing.INDIVIDUAL else GlobalParameters.fed_joint_tax_brackets,
-                          tax_deduction=GlobalParameters.standard_tax_deduction if user.filing == Filing.INDIVIDUAL else GlobalParameters.joint_tax_deduction)
+                          tax_deduction=GlobalParameters.fed_standard_tax_deduction if user.filing == Filing.INDIVIDUAL else GlobalParameters.fed_joint_tax_deduction)
 
 def calculate_annual_state_income_tax(user:Person) -> int:
     tax_deduction = GlobalParameters.state_standard_tax_deduction if user.filing == Filing.INDIVIDUAL else GlobalParameters.state_joint_tax_deduction
@@ -59,7 +59,7 @@ def calculate_annual_medicare_tax(user: Person) -> int:
     taxes_owed = 0
     medicare_high_earner_salary = GlobalParameters.medicare_high_earner_salary_individual \
         if user.filing == Filing.INDIVIDUAL else GlobalParameters.medicare_high_earner_salary_joint
-    taxes_owed += user.get_fica_taxable_income() * GlobalParameters.medicare_tax
+    taxes_owed += user.get_fica_taxable_income() * GlobalParameters.medicare_tax_percent
     if user.get_fica_taxable_income() > medicare_high_earner_salary:
         taxes_owed += (user.get_fica_taxable_income() - medicare_high_earner_salary) * GlobalParameters.medicare_high_earner_tax
     

@@ -3,8 +3,13 @@ from utils.calc import calculate_annual_income_tax, calculate_annual_state_incom
 from utils.enums import AccountType, Filing, Frequency, MonthlyCompoundType, State
 from utils.parameters import Account, Person
 from utils.globals import GlobalParameters
+from utils.parse_parameters import parse_parameters
 import matplotlib.pyplot as plt
 import copy
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def generate_investment_growth_graph(user: Person, ax: Axes):
     # calculate and show retirement simulation
@@ -34,7 +39,11 @@ def generate_income_distribution_graph(user: Person, ax: Axes):
     # calculate and show income pie chart
     # add taxes
     pie_labels = ['Federal Income tax', 'Medicare Tax', 'Social Security Tax']
-    pie_sizes = [calculate_annual_federal_income_tax(user), calculate_annual_medicare_tax(user), calculate_annual_social_security_tax(user)]
+    pie_sizes = [
+        calculate_annual_federal_income_tax(user),
+        calculate_annual_medicare_tax(user),
+        calculate_annual_social_security_tax(user)
+    ]
 
     if calculate_annual_state_income_tax(user) > 0:
         pie_labels.append('State Tax')
@@ -79,40 +88,19 @@ def generate_income_distribution_graph(user: Person, ax: Axes):
     ax.set_title('Annual Spending', fontweight='semibold')
     ax.text(-1.2, -1.5,f'Total: ${sum(pie_sizes):.2f}\nTaxes saved by retirement accounts: ${retirement_deductions_excess:.2f}', fontstyle='italic')
 
-    print([(name, size) for (name,size) in zip(pie_labels, pie_sizes)])
+    logger.info(f"Pie Sizes: {[(name, size) for (name,size) in zip(pie_labels, pie_sizes)]}")
 
 def main():
-    user = Person(pre_tax_income=115_000, retirement_age=65, lifespan=120, filing=Filing.INDIVIDUAL, state_of_residence=State.TEXAS)
-    user.add_accumulation_expense('fixed costs', 2_475.07*1.15, Frequency.MONTHLY)
-    user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-                            regular_investment_dollar=4150/12,
-                            annual_investment_increase=0.02,
-                            account_type= AccountType.HSA,
-                            annual_retirement_post_tax_expense=16_000), "HSA")
+    user = parse_parameters()
+    GlobalParameters.configure(2024, user)
     
-    # option 1
+    # TODO company match, needs to be changed so that contribution does not subtract from pay
+    # HSA company match
     # user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-    #                         regular_investment_dollar=22500/12,
-    #                         annual_investment_increase=0.02,
-    #                         account_type= AccountType.TRADITIONAL,
-    #                         annual_retirement_post_tax_expense=70_000), "401(k)")
-    # user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-    #                          regular_investment_dollar=7_000/12,
-    #                          annual_investment_increase=0.02,
-    #                          account_type=AccountType.ROTH,
-    #                          annual_retirement_post_tax_expense=27_000), "ROTH IRA")
-
-    # options 2
-    user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-                             regular_investment_dollar=22500/12,
-                             annual_investment_increase=0.02,
-                             account_type= AccountType.ROTH,
-                             annual_retirement_post_tax_expense=88_000), "ROTH")
-    user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-                             regular_investment_dollar=2050/12,
-                             annual_investment_increase=0.02,
-                             account_type=AccountType.ROTH,
-                             annual_retirement_post_tax_expense=8_000), "ROTH IRA")
+    #                     regular_investment_dollar=500/12,
+    #                     annual_investment_increase=0.02,
+    #                     account_type=AccountType.HSA,
+    #                     annual_retirement_post_tax_expense=16_000), "HSA company match")
 
     fig, (ax1, ax2) = plt.subplots(1, 2)
     generate_investment_growth_graph(user, ax1)
@@ -122,9 +110,15 @@ def main():
 if __name__ == "__main__":
     main()
 
+# ! add a way to change between each year for tax brackets in the globals
+# ! add a config.json file so that im not just uploading my finances onto the internet lol
+# ! add a way to manage each year, config files for each year and being able to switch between them
+# ! add toggle for post tax income, so that tax is not calculated
+# ! add toggle for company matches that does not subtract from pay, also add another text for company match total. Company match should not show up in pie. 
 # ! calculate how much to withdraw each year from account in order to end at the death age
 #   - should be a toggle in account T/F
 # ! show how much money withdrawn from each account during retirement phase
+# ! calculate total money spent (post tax income during accumulation + post tax withdrawal during retirement)
 # ! automatically calculate retirement expense to end at life expectancy
 # ! allow user to set timespan during the accumulation phase where they are contributing
 #  - (useful for hsa where only young people can contribute because they are healthy)

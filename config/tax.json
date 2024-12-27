@@ -1,0 +1,147 @@
+{
+    "2024": {
+        "FederalTax": {
+            "Individual": {
+                "LowerBounds": [
+                    0,
+                    11601,
+                    47151,
+                    100526,
+                    191951,
+                    243726,
+                    609351
+                ],
+                "Percents": [
+                    0.10,
+                    0.12,
+                    0.22,
+                    0.24,
+                    0.32,
+                    0.35,
+                    0.37
+                ]
+            },
+            "Joint": {
+                "LowerBounds": [
+                    0,
+                    22001,
+                    89451,
+                    190751,
+                    364201,
+                    462501,
+                    693751
+                ],
+                "Percents": [
+                    0.10,
+                    0.12,
+                    0.22,
+                    0.24,
+                    0.32,
+                    0.35,
+                    0.37
+                ]
+            },
+            "StandardTaxDeduction": 14600,
+            "JointTaxDeduction": 27700
+        },
+        "StateTax": {
+            "California": {
+                "Individual": {
+                    "LowerBounds": [
+                        0,
+                        10412,
+                        24684,
+                        38959,
+                        54081,
+                        68350,
+                        349137,
+                        418961,
+                        698271
+                    ],
+                    "Percents": [
+                        0.01,
+                        0.02,
+                        0.04,
+                        0.06,
+                        0.08,
+                        0.093,
+                        0.103,
+                        0.113,
+                        0.123
+                    ]
+                },
+                "Joint": {
+                    "LowerBounds": [
+                        0,
+                        20824,
+                        49368,
+                        77918,
+                        108162,
+                        136700,
+                        698274,
+                        837922,
+                        1396542
+                    ],
+                    "Percents": [
+                        0.01,
+                        0.02,
+                        0.04,
+                        0.06,
+                        0.08,
+                        0.093,
+                        0.103,
+                        0.113,
+                        0.123
+                    ]
+                },
+                "StandardTaxDeduction": 5363,
+                "JointTaxDeduction": 10726
+            }
+        },
+        "FicaTax": {
+            "SocialSecurityMaxTaxable": 168600,
+            "SocialSecurityTaxPercent": 0.062,
+            "MedicareHighEarnerTax": 0.09,
+            "MedicareHighEarnerSalaryIndividual": 200000,
+            "MedicareHighEarnerSalaryJoint": 250000,
+            "MedicareTaxPercent": 0.0145
+        }
+    },
+    "2025": {
+        "FederalTax": {
+            "Individual": {
+                "LowerBounds": [
+                    0,
+                    11925,
+                    48475,
+                    103350,
+                    197300,
+                    250525
+                ],
+                "Percents": [
+                    0.10,
+                    0.12,
+                    0.22,
+                    0.24,
+                    0.32,
+                    0.35
+                ]
+            },
+            "Joint": {
+                "LowerBounds": [],
+                "Percents": []
+            },
+            "StandardTaxDeduction": 15000,
+            "JointTaxDeduction": 30000
+        },
+        "StateTax": {},
+        "FicaTax": {
+            "SocialSecurityMaxTaxable": 176100,
+            "SocialSecurityTaxPercent": 0.062,
+            "MedicareHighEarnerTax": 0.09,
+            "MedicareHighEarnerSalaryIndividual": 200000,
+            "MedicareHighEarnerSalaryJoint": 250000,
+            "MedicareTaxPercent": 0.0145
+        }
+    }
+}

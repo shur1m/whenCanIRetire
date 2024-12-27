@@ -11,7 +11,7 @@ class Account:
                  annual_retirement_return: int = 0.05,
                  annual_retirement_post_tax_expense: int = 72_000,
                  compound_frequency: Frequency = Frequency.MONTHLY,
-                 compound_type: MonthlyCompoundType= MonthlyCompoundType.ROOT,
+                 compound_type: MonthlyCompoundType = MonthlyCompoundType.ROOT,
                  account_type: AccountType = AccountType.GENERIC) -> None:
         
         self.owner: Optional[Person] = None
@@ -67,7 +67,7 @@ class Person:
         for account_name, account in accounts.items:
             self.accounts[account_name] = account
 
-    def add_accumulation_expense(self, name: str, expense: int, frequency: Frequency = Frequency.MONTHLY):
+    def add_accumulation_expense(self, name: str, expense: int, frequency: Frequency):
         if frequency == Frequency.MONTHLY:
             self.accumulation_phase_expenses[name] = expense * 12
         elif frequency == Frequency.ANNUALLY:

@@ -1,22 +1,22 @@
 from enum import Enum
-class Frequency(Enum):
-    MONTHLY = 1
-    ANNUALLY = 2
+class Frequency(str, Enum):
+    MONTHLY = "monthly"
+    ANNUALLY = "annually"
 
 class MonthlyCompoundType(Enum):
     DIVIDE = 1
     ROOT = 2
 
-class AccountType(Enum):
-    GENERIC = 1
-    PRETAX = TRADITIONAL = 2
-    ROTH = 3
-    HSA = 4
+class AccountType(str, Enum):
+    GENERIC = "generic"
+    PRETAX = TRADITIONAL = "traditional"
+    ROTH = "roth"
+    HSA = "hsa"
 
-class Filing(Enum):
-    INDIVIDUAL = 1
-    JOINT = 2
+class Filing(str, Enum):
+    INDIVIDUAL = "individual"
+    JOINT = "joint"
 
-class State(Enum):
-    TEXAS = 1
-    CALIFORNIA = 2
+class State(str, Enum):
+    TEXAS = "Texas"
+    CALIFORNIA = "California"

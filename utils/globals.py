@@ -1,22 +1,78 @@
+import json
+import logging
+
+from utils.parameters import Person, State
+
+logger = logging.getLogger(__name__)
+
 class GlobalParameters:
+    year = None
     inflation_rate: int = 0.03
 
     # federal tax brackets (percentage, floor/bottom value of bracket)
-    fed_individual_tax_brackets: list[tuple[int, int]] = [(0.10, 0), (0.12, 11_601), (0.22, 47_151), (0.24, 100_526), (0.32, 191_951), (0.35, 243_726), (0.37, 609_351)] # (percent, bottom value)
-    fed_joint_tax_brackets: list[tuple[int, int]] = [(0.10, 0), (0.12, 22_001), (0.22, 89_451), (0.24, 190_751), (0.32, 364_201), (0.35, 462_501), (0.37, 693_751)] # (percent, bottom value)
-    standard_tax_deduction: int = 14_600
-    joint_tax_deduction: int = 27_700
+    fed_individual_tax_brackets: list[tuple[int, int]] = None
+    fed_joint_tax_brackets: list[tuple[int, int]] = None
+    fed_standard_tax_deduction: int = None
+    fed_joint_tax_deduction: int = None
 
     # state tax brackets
-    state_individual_tax_brackets: list[tuple[int, int]] = [(0.01, 0), (0.02, 10_412), (0.04, 24_684), (0.06, 38_959), (0.08, 54_081), (0.093, 68_350), (0.103, 349_137), (0.113, 418_961), (0.123, 698_271)]
-    state_joint_tax_brackets: list[tuple[int, int]] = [(0.01, 0), (0.02, 20_824), (0.04, 49_368), (0.06, 77_918), (0.08, 108_162), (0.093, 136_700), (0.103, 698_274), (0.113, 837_922), (0.123, 1_396_542)]
-    state_standard_tax_deduction: int = 5_363
-    state_joint_tax_deduction: int = 10_726
+    state_individual_tax_brackets: list[tuple[int, int]] = None
+    state_joint_tax_brackets: list[tuple[int, int]] = None
+    state_standard_tax_deduction: int = None
+    state_joint_tax_deduction: int = None
     
-    social_security_max_taxable: int = 160_200
-    social_security_tax_percent: int = 0.062
+    social_security_max_taxable: int = None
+    social_security_tax_percent: int = None
 
-    medicare_high_earner_tax = 0.09
-    medicare_high_earner_salary_individual = 200_000
-    medicare_high_earner_salary_joint = 250_000
-    medicare_tax = 0.0145 # different if you are self-employed
+    medicare_high_earner_tax = None
+    medicare_high_earner_salary_individual = None
+    medicare_high_earner_salary_joint = None
+    medicare_tax_percent = None # different if you are self-employed
+
+    def configure(year: int, user: Person, inflation_rate = 0.03) -> None:
+        GlobalParameters.inflation_rate = inflation_rate
+        year = str(year)
+        GlobalParameters.year = year
+        
+        with open('config/tax.json') as tax_json:
+            tax_dict = json.load(tax_json)[year]
+
+            GlobalParameters._parse_federal_tax(tax_dict["FederalTax"])
+            GlobalParameters._parse_state_tax(tax_dict["StateTax"], user)
+            GlobalParameters._parse_fica_tax(tax_dict["FicaTax"])
+            
+
+    def _parse_federal_tax(federal_tax):
+        federal_tax_individual = federal_tax["Individual"]
+        federal_tax_joint = federal_tax["Joint"]
+
+        GlobalParameters.fed_individual_tax_brackets = GlobalParameters._parse_tax_bracket(federal_tax_individual)
+        GlobalParameters.fed_joint_tax_brackets = GlobalParameters._parse_tax_bracket(federal_tax_joint)
+        GlobalParameters.fed_standard_tax_deduction = federal_tax["StandardTaxDeduction"]
+        GlobalParameters.fed_joint_tax_deduction = federal_tax["JointTaxDeduction"]
+
+    def _parse_state_tax(state_tax, user: Person):
+        if user.state_of_residence == State.TEXAS:
+            return
+        
+        state_tax = state_tax[user.state_of_residence]
+        state_tax_individual = state_tax["Individual"]
+        state_tax_joint = state_tax["Joint"]
+
+        GlobalParameters.state_individual_tax_brackets = GlobalParameters._parse_tax_bracket(state_tax_individual)
+        GlobalParameters.state_joint_tax_brackets = GlobalParameters._parse_state_tax(state_tax_joint)
+        GlobalParameters.state_standard_tax_deduction = state_tax["StandardTaxDeduction"]
+        GlobalParameters.state_joint_tax_deduction = state_tax["JointTaxDeduction"]
+        
+    def _parse_fica_tax(fica_tax):
+        GlobalParameters.social_security_max_taxable = fica_tax["SocialSecurityMaxTaxable"]
+        GlobalParameters.social_security_tax_percent = fica_tax["SocialSecurityTaxPercent"]
+        GlobalParameters.medicare_high_earner_tax = fica_tax["MedicareHighEarnerTax"]
+        GlobalParameters.medicare_high_earner_salary_individual = fica_tax["MedicareHighEarnerSalaryIndividual"]
+        GlobalParameters.medicare_high_earner_salary_joint = fica_tax["MedicareHighEarnerSalaryJoint"]
+        GlobalParameters.medicare_tax_percent = fica_tax["MedicareTaxPercent"]
+
+    def _parse_tax_bracket(individual_or_joint_bracket: dict) -> list[tuple]:
+        lower_bounds = individual_or_joint_bracket["LowerBounds"]
+        percents = individual_or_joint_bracket["Percents"]
+        return list(zip(percents, lower_bounds))
