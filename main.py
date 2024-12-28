@@ -110,9 +110,6 @@ def main():
 if __name__ == "__main__":
     main()
 
-# ! add a way to change between each year for tax brackets in the globals
-# ! add a config.json file so that im not just uploading my finances onto the internet lol
-# ! add a way to manage each year, config files for each year and being able to switch between them
 # ! add toggle for post tax income, so that tax is not calculated
 # ! add toggle for company matches that does not subtract from pay, also add another text for company match total. Company match should not show up in pie. 
 # ! calculate how much to withdraw each year from account in order to end at the death age

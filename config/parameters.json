@@ -1,3 +1,74 @@
 {
-    "CurrentYear": 2025,
+    "CurrentYear": 2024,
+    "2024": {
+        "InflationRate": 0.03,
+        "Person": {
+            "current_age": 21,
+            "retirement_age": 65,
+            "lifespan": 120,
+            "pre_tax_income": 65000,
+            "additional_income_tax_deductions": 0,
+            "state_of_residence": "Texas",
+            "filing": "individual"
+        },
+        "Accounts": {
+            "HSA": {
+                "account_type": "hsa",
+                "regular_investment_frequency": "monthly",
+                "regular_investment_dollar": 100.01,
+                "annual_investment_increase": 0.02,
+                "annual_retirement_post_tax_expense": 10000
+            },
+            "401(k)": {
+                "regular_investment_frequency": "monthly",
+                "regular_investment_dollar": 1000.02,
+                "annual_investment_increase": 0.02,
+                "account_type": "traditional",
+                "annual_retirement_post_tax_expense": 30000
+            },
+            "ROTH IRA": {
+                "regular_investment_frequency": "monthly",
+                "regular_investment_dollar": 250.03,
+                "annual_investment_increase": 0.02,
+                "account_type": "roth",
+                "annual_retirement_post_tax_expense": 27000
+            }
+        },
+        "Expenses": [
+            {
+                "name": "fixed costs",
+                "expense": 1200.90,
+                "frequency": "monthly"
+            }
+        ]
+    },
+    "2025": {
+        "InflationRate": 0.03,
+        "Person": {
+            "current_age": 23,
+            "retirement_age": 65,
+            "lifespan": 120,
+            "pre_tax_income": 70000,
+            "additional_income_tax_deductions": 0,
+            "state_of_residence": "Texas",
+            "filing": "individual"
+        },
+        "Accounts": {
+            "401(k)": {
+                "account_type": "traditional",
+                "regular_investment_frequency": "monthly",
+                "initial_savings": 20,
+                "regular_investment_dollar": 900,
+                "annual_investment_increase": 0.02,
+                "annual_retirement_post_tax_expense": 70000
+            }
+        },
+        "Expenses": [
+            {
+                "name": "fixed costs",
+                "expense": 1400.50,
+                "frequency": "monthly"
+            }
+        ]
+    }
 }
