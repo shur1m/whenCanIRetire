@@ -1,12 +1,14 @@
 from matplotlib.axes import Axes
-from utils.calc import calculate_annual_income_tax, calculate_annual_state_income_tax, simulate_account, calculate_annual_federal_income_tax, calculate_annual_social_security_tax, calculate_annual_medicare_tax
-from utils.enums import AccountType, Filing, Frequency, MonthlyCompoundType, State
-from utils.parameters import Account, Person
-from utils.globals import GlobalParameters
-from utils.parse_parameters import parse_parameters
 import matplotlib.pyplot as plt
 import copy
 import logging
+
+from calculate.tax import calculate_annual_income_tax, calculate_annual_state_income_tax, calculate_annual_federal_income_tax, calculate_annual_social_security_tax, calculate_annual_medicare_tax
+from calculate.retirement import simulate_account
+from utils.enums import Frequency
+from utils.parameters import Person
+from utils.globals import GlobalParameters
+from utils.parse_parameters import parse_parameters
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
