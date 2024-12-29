@@ -112,6 +112,7 @@ def main():
 if __name__ == "__main__":
     main()
 
+# ! allow company contributions to retirement accounts to not affect your total money in pie chart
 # ! add toggle for post tax income, so that tax is not calculated
 # ! add toggle for company matches that does not subtract from pay, also add another text for company match total. Company match should not show up in pie. 
 # ! calculate how much to withdraw each year from account in order to end at the death age

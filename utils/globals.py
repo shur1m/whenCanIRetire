@@ -60,7 +60,7 @@ class GlobalParameters:
         state_tax_joint = state_tax["Joint"]
 
         GlobalParameters.state_individual_tax_brackets = GlobalParameters._parse_tax_bracket(state_tax_individual)
-        GlobalParameters.state_joint_tax_brackets = GlobalParameters._parse_state_tax(state_tax_joint)
+        GlobalParameters.state_joint_tax_brackets = GlobalParameters._parse_tax_bracket(state_tax_joint)
         GlobalParameters.state_standard_tax_deduction = state_tax["StandardTaxDeduction"]
         GlobalParameters.state_joint_tax_deduction = state_tax["JointTaxDeduction"]
         
