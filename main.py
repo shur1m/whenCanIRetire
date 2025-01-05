@@ -31,10 +31,12 @@ def generate_investment_growth_graph(user: Person, ax: Axes):
                 total_savings_graph_values.append(0)
             total_savings_graph_values[i] += graph_savings_values[i]
 
+    yearly_retirement_expense = sum([account.annual_retirement_post_tax_expense for account in user.accounts.values()])
+
     ax.plot(total_savings_graph_labels, total_savings_graph_values, label='Total Savings')
     ax.set_title('Retirement Savings', fontweight='semibold')
     ax.legend(loc='best')
-    ax.set_xlabel('age (years)')
+    ax.set_xlabel(f"age (years)\nTotal yearly expense during retirement phase (today's dollars): ${yearly_retirement_expense:.2f}")
     ax.set_ylabel('investment savings (dollars)')
 
 def generate_income_distribution_graph(user: Person, ax: Axes):
@@ -112,11 +114,12 @@ def main():
 if __name__ == "__main__":
     main()
 
-# ! allow company contributions to retirement accounts to not affect your total money in pie chart
-# ! add toggle for post tax income, so that tax is not calculated
-# ! add toggle for company matches that does not subtract from pay, also add another text for company match total. Company match should not show up in pie. 
 # ! calculate how much to withdraw each year from account in order to end at the death age
 #   - should be a toggle in account T/F
+# ! allow company contributions to retirement accounts to not affect your total money in pie chart
+# ! allow users to compare two different plans for investment in one run
+# ! add toggle for post tax income, so that tax is not calculated
+# ! add toggle for company matches that does not subtract from pay, also add another text for company match total. Company match should not show up in pie. 
 # ! show how much money withdrawn from each account during retirement phase
 # ! calculate total money spent (post tax income during accumulation + post tax withdrawal during retirement)
 # ! automatically calculate retirement expense to end at life expectancy
