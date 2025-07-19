@@ -19,7 +19,7 @@ def generate_investment_growth_graph(user: Person, ax: Axes):
     total_savings_graph_values = []
 
     for account_name, account in user.accounts.items():
-        graph_labels, graph_savings_values = simulate_account(user.accounts[account_name])
+        graph_labels, graph_savings_values = simulate_account(account)
         ax.plot(graph_labels, graph_savings_values, label=account_name)
         
         if len(graph_labels) > len(total_savings_graph_labels):

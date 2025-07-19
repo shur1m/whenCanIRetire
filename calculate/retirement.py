@@ -4,12 +4,22 @@ from utils.parameters import Person, Account
 from utils.enums import Frequency, MonthlyCompoundType, AccountType
 from utils.globals import GlobalParameters
 
-def adjust_for_inflation(todays_dollars: int,  months: int) -> int:
+def simulate_account(account: Account):
+    graph_labels = []
+    graph_savings_values = []
+    current_savings = account.initial_savings
+
+    savings_at_retirement = _simulate_accumulation(account, current_savings, graph_labels, graph_savings_values)
+    _simulate_retirement(account, savings_at_retirement, graph_labels, graph_savings_values)
+
+    return graph_labels, graph_savings_values
+
+def _adjust_for_inflation(todays_dollars: int,  months: int) -> int:
     inflation_multiplier = 1 + GlobalParameters.inflation_rate
     inflation_per_month = math.pow(inflation_multiplier, 1/12)
     return todays_dollars * math.pow(inflation_per_month, months)
 
-def calculate_pre_tax_income(post_tax_income: int):
+def _calculate_pre_tax_income(post_tax_income: int):
     # binary search
     left = post_tax_income
     right = post_tax_income * 5
@@ -25,12 +35,12 @@ def calculate_pre_tax_income(post_tax_income: int):
     
     return round(pre_tax_income, 2)
 
-def simulate_account(account: Account):
-    graph_labels = []
-    graph_savings_values = []
-    current_savings = account.initial_savings
-
-    # accumulation phase
+def _simulate_accumulation(
+        account: Account,
+        current_savings: float,
+        graph_labels: list[int],
+        graph_savings_values: list[float]
+) -> float:
     for year in range(account.owner.retirement_age - account.owner.current_age):
         #compounding yearly 
         if account.compound_frequency == Frequency.ANNUALLY:
@@ -55,23 +65,29 @@ def simulate_account(account: Account):
 
         graph_labels.append(account.owner.current_age + year)
         graph_savings_values.append(current_savings)
+        
+    return current_savings
 
-    savings_at_retirement = current_savings
-
+def _simulate_retirement(
+        account: Account,
+        current_savings: float,
+        graph_labels: list[int],
+        graph_savings_values: list[float]
+):
     # retirement phase (no social security)
     retirement_months = 0
     annual_retirement_withdrawal = account.annual_retirement_post_tax_expense
     
     # binary search pre tax expense given post tax expense for Generic and Traditional account withdrawals, Roth/HSA withdrawals are not adjusted
     if account.account_type == AccountType.GENERIC or account.account_type == AccountType.TRADITIONAL:
-        annual_retirement_withdrawal = calculate_pre_tax_income(annual_retirement_withdrawal)
+        annual_retirement_withdrawal = _calculate_pre_tax_income(annual_retirement_withdrawal)
 
     while current_savings >= annual_retirement_withdrawal/12 and \
           account.owner.retirement_age + retirement_months//12 < account.owner.lifespan:
 
         # each month, subtract monthly "paycheck" and compound
         months_since_today = (account.owner.retirement_age - account.owner.current_age) * 12 + retirement_months
-        current_savings -= adjust_for_inflation(annual_retirement_withdrawal/12, months_since_today)
+        current_savings -= _adjust_for_inflation(annual_retirement_withdrawal/12, months_since_today)
         
         if account.compound_frequency == Frequency.MONTHLY:
             current_savings *= math.pow(1 + account.annual_retirement_return, 1/12)
@@ -85,8 +101,6 @@ def simulate_account(account: Account):
             graph_labels.append(account.owner.retirement_age + retirement_months//12)
             graph_savings_values.append(current_savings)
 
-
     if current_savings < 0:
         graph_labels.append(account.owner.retirement_age + retirement_months//12 + 1)
         graph_savings_values.append(0)
-    return graph_labels, graph_savings_values
