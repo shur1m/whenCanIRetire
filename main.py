@@ -96,7 +96,6 @@ def generate_income_distribution_graph(user: Person, ax: Axes):
 
 def main():
     user = parse_parameters()
-    GlobalParameters.configure(2024, user)
     
     # TODO company match, needs to be changed so that contribution does not subtract from pay
     # HSA company match
