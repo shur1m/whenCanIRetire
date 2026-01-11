@@ -143,5 +143,42 @@
             "MedicareHighEarnerSalaryJoint": 250000,
             "MedicareTaxPercent": 0.0145
         }
+    },
+    "2026": {
+        "FederalTax": {
+            "Individual": {
+                "LowerBounds": [
+                    0,
+                    12400,
+                    50400,
+                    105700,
+                    201775,
+                    256225
+                ],
+                "Percents": [
+                    0.10,
+                    0.12,
+                    0.22,
+                    0.24,
+                    0.32,
+                    0.35
+                ]
+            },
+            "Joint": {
+                "LowerBounds": [],
+                "Percents": []
+            },
+            "StandardTaxDeduction": 16100,
+            "JointTaxDeduction": 32200
+        },
+        "StateTax": {},
+        "FicaTax": {
+            "SocialSecurityMaxTaxable": 184500,
+            "SocialSecurityTaxPercent": 0.062,
+            "MedicareHighEarnerTax": 0.09,
+            "MedicareHighEarnerSalaryIndividual": 200000,
+            "MedicareHighEarnerSalaryJoint": 250000,
+            "MedicareTaxPercent": 0.0145
+        }
     }
 }
