@@ -2,6 +2,7 @@ from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import copy
 import logging
+import json
 
 from calculate.tax import calculate_annual_income_tax, calculate_annual_state_income_tax, calculate_annual_federal_income_tax, calculate_annual_social_security_tax, calculate_annual_medicare_tax
 from calculate.retirement import simulate_account
@@ -92,7 +93,8 @@ def generate_income_distribution_graph(user: Person, ax: Axes):
     ax.set_title('Annual Spending', fontweight='semibold')
     ax.text(-1.2, -1.5,f'Total: ${sum(pie_sizes):.2f}\nTaxes saved by retirement accounts: ${retirement_deductions_excess:.2f}', fontstyle='italic')
 
-    logger.info(f"Pie Sizes: {[(name, size) for (name,size) in zip(pie_labels, pie_sizes)]}")
+    pie_sizes = {name:size for (name,size) in zip(pie_labels, pie_sizes)}
+    logger.info(f"Pie Sizes: {json.dumps(pie_sizes, indent=4)}")
 
 def main():
     user = parse_parameters()

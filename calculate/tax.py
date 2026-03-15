@@ -21,10 +21,14 @@ def calculate_annual_state_income_tax(user:Person) -> int:
     if user.state_of_residence == State.TEXAS or user.state_of_residence == None:
         return 0
 
-    if user.state_of_residence == State.CALIFORNIA:
-        SDI_tax = 0.011 * (user.pre_tax_income - tax_deduction) # SDI tax applies to 401(k) contributions #?not sure if this applies to HSA contributions, although insignificant
+    elif user.state_of_residence == State.CALIFORNIA:
+        # SDI tax applies to 401(k) contributions
+        # #?not sure if this applies to HSA contributions, although insignificant
+        SDI_tax = 0.011 * (user.pre_tax_income - tax_deduction) 
         MHS_tax = 0.01 * (user.get_reduced_income() - tax_deduction) if user.get_reduced_income() > 1_000_000 else 0# mental health services tax TODO need to change this to 2million for joint filers
         additional_state_tax += SDI_tax + MHS_tax
+
+    # TODO add a New York statement 
 
     return additional_state_tax + _calculate_annual_income_tax(user,
                           tax_brackets = GlobalParameters.state_individual_tax_brackets if user.filing == Filing.INDIVIDUAL else GlobalParameters.state_joint_tax_brackets,
