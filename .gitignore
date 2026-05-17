@@ -163,3 +163,5 @@ cython_debug/
 
 tmp.json
 config/parameters.json
+
+.DS_Store
