@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 from utils.parameters import Account, Person
 from utils.globals import GlobalParameters
 
@@ -6,7 +7,7 @@ from utils.globals import GlobalParameters
 def parse_parameters() -> Person:
     user = None
     with open("config/parameters.json") as parameters_json:
-        parameter_dict = json.load(parameters_json)
+        parameter_dict = json.load(parameters_json, parse_float=Decimal)
 
     current_year = parameter_dict["CurrentYear"]
     current_year_parameters = parameter_dict[str(current_year)]
