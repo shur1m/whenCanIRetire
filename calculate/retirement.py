@@ -1,6 +1,6 @@
 from typing import Union
 from decimal import Decimal, ROUND_HALF_UP
-from calculate.tax import calculate_annual_income_tax
+from calculate.federal_tax import calculate_annual_income_tax
 from utils.parameters import Person, Account, to_decimal
 from utils.enums import Frequency, MonthlyCompoundType, AccountType
 from utils.globals import GlobalParameters
