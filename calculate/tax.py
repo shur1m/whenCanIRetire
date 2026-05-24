@@ -5,7 +5,7 @@ from utils.globals import GlobalParameters
 
 
 # federal income, state income, social security, medicare
-def calculate_annual_income_tax(user: Person) -> int:
+def calculate_annual_income_tax(user: Person) -> float:
     return (
         calculate_annual_federal_income_tax(user)
         + calculate_annual_social_security_tax(user)
@@ -14,7 +14,7 @@ def calculate_annual_income_tax(user: Person) -> int:
     )
 
 
-def calculate_annual_federal_income_tax(user: Person) -> int:
+def calculate_annual_federal_income_tax(user: Person) -> float:
     return _calculate_annual_income_tax(
         user,
         tax_brackets=(
@@ -30,16 +30,16 @@ def calculate_annual_federal_income_tax(user: Person) -> int:
     )
 
 
-def calculate_annual_state_income_tax(user: Person) -> int:
+def calculate_annual_state_income_tax(user: Person) -> float:
     tax_deduction = (
         GlobalParameters.state_standard_tax_deduction
         if user.filing == Filing.INDIVIDUAL
         else GlobalParameters.state_joint_tax_deduction
     )
-    additional_state_tax = 0
+    additional_state_tax: float = 0.0
 
     if user.state_of_residence == State.TEXAS or user.state_of_residence == None:
-        return 0
+        return 0.0
 
     elif user.state_of_residence == State.CALIFORNIA:
         # SDI tax applies to 401(k) contributions
@@ -48,7 +48,7 @@ def calculate_annual_state_income_tax(user: Person) -> int:
         MHS_tax = (
             0.01 * (user.get_reduced_income() - tax_deduction)
             if user.get_reduced_income() > 1_000_000
-            else 0
+            else 0.0
         )  # mental health services tax TODO need to change this to 2million for joint filers
         additional_state_tax += SDI_tax + MHS_tax
 
@@ -66,11 +66,11 @@ def calculate_annual_state_income_tax(user: Person) -> int:
 
 
 def _calculate_annual_income_tax(
-    user: Person, tax_brackets: list[tuple[int, int]], tax_deduction: int
-) -> int:
+    user: Person, tax_brackets: list[tuple[float, int]], tax_deduction: int
+) -> float:
     taxable_income = user.get_reduced_income() - tax_deduction
 
-    taxes_owed = 0
+    taxes_owed: float = 0.0
     for i in range(len(tax_brackets)):
         tax_percent, floor_value = tax_brackets[i]
         ceiling_value = (
@@ -86,15 +86,15 @@ def _calculate_annual_income_tax(
     return taxes_owed
 
 
-def calculate_annual_social_security_tax(user: Person) -> int:
+def calculate_annual_social_security_tax(user: Person) -> float:
     social_security_taxable_income = min(
         user.get_fica_taxable_income(), GlobalParameters.social_security_max_taxable
     )
     return social_security_taxable_income * GlobalParameters.social_security_tax_percent
 
 
-def calculate_annual_medicare_tax(user: Person) -> int:
-    taxes_owed = 0
+def calculate_annual_medicare_tax(user: Person) -> float:
+    taxes_owed: float = 0.0
     medicare_high_earner_salary = (
         GlobalParameters.medicare_high_earner_salary_individual
         if user.filing == Filing.INDIVIDUAL
