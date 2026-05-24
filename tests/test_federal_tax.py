@@ -1,5 +1,5 @@
 """
-Regression tests for calculate/tax.py
+Regression tests for calculate/federal_tax.py
 
 These tests pin the exact numeric outputs of every public tax function so that
 any refactor that accidentally changes the math will be caught immediately.
@@ -27,7 +27,7 @@ import json
 from decimal import Decimal
 import pytest
 
-from calculate.tax import (
+from calculate.federal_tax import (
     calculate_annual_income_tax,
     calculate_annual_federal_income_tax,
     calculate_annual_state_income_tax,
@@ -39,19 +39,16 @@ from utils.parameters import Person
 from utils.enums import Filing, Frequency, AccountType, State
 from utils.schemas import TaxSchema
 
-# ---------------------------------------------------------------------------
-# Helper – ensures GlobalParameters is loaded for the right year/user before
-# every assertion.
-# ---------------------------------------------------------------------------
+# Load and validate tax tables once at module scope to eliminate file I/O overhead in tests
+with open("config/tax.json") as _f:
+    _TAX_DATA = TaxSchema.model_validate(json.load(_f))
 
 
 def _setup(user: Person, year: int = 2024) -> GlobalParameters:
-    with open("config/tax.json") as f:
-        tax_data = TaxSchema.model_validate(json.load(f))
     return GlobalParameters(
         year=year,
         inflation_rate=Decimal("0.03"),
-        yearly_tax=tax_data.root[str(year)],
+        yearly_tax=_TAX_DATA.root[str(year)],
     )
 
 
