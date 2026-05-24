@@ -4,7 +4,10 @@ import matplotlib.pyplot as plt
 import logging
 import json
 
-from calculate.federal_tax import calculate_income_distribution_data
+from calculate.federal_tax import (
+    calculate_income_distribution_data,
+    calculate_retirement_deductions_excess,
+)
 from calculate.retirement import simulate_account
 from utils.enums import Frequency
 from utils.parameters import Person
@@ -55,12 +58,22 @@ def generate_income_distribution_graph(
     user: Person, config: GlobalParameters, ax: Axes
 ):
     # Retrieve decoupled income distribution data
-    pie_data, retirement_deductions_excess = calculate_income_distribution_data(
-        user, config
-    )
+    pie_data = calculate_income_distribution_data(user, config)
 
     pie_labels = list(pie_data.keys())
     pie_sizes = list(pie_data.values())
+
+    # Calculate user_tax to find tax savings excess
+    user_tax = (
+        pie_data.get("Federal Income tax", Decimal("0"))
+        + pie_data.get("Medicare Tax", Decimal("0"))
+        + pie_data.get("Social Security Tax", Decimal("0"))
+        + pie_data.get("State Tax", Decimal("0"))
+    )
+
+    retirement_deductions_excess = calculate_retirement_deductions_excess(
+        user, config, user_tax
+    )
 
     def autopct_format(values):
         def percent_and_dollar_value(pct):

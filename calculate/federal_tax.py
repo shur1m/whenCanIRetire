@@ -93,11 +93,8 @@ def calculate_retirement_deductions_excess(
 
 def calculate_income_distribution_data(
     user: Person, config: GlobalParameters
-) -> tuple[dict[str, Decimal], Decimal]:
-    """Calculates distribution of gross annual income across categories (taxes, contributions, expenses)
-
-    and returns (pie_data, retirement_deductions_excess).
-    """
+) -> dict[str, Decimal]:
+    """Calculates distribution of gross annual income across categories (taxes, contributions, expenses)."""
     pie_data: dict[str, Decimal] = {
         "Federal Income tax": calculate_annual_federal_income_tax(user, config),
         "Medicare Tax": calculate_annual_medicare_tax(user, config),
@@ -125,15 +122,4 @@ def calculate_income_distribution_data(
     remaining_income = user.pre_tax_income - sum(pie_data.values())
     pie_data["Remaining Income"] = remaining_income
 
-    user_tax = (
-        pie_data["Federal Income tax"]
-        + pie_data["Medicare Tax"]
-        + pie_data["Social Security Tax"]
-        + state_tax
-    )
-
-    retirement_deductions_excess = calculate_retirement_deductions_excess(
-        user, config, user_tax
-    )
-
-    return pie_data, retirement_deductions_excess
+    return pie_data
