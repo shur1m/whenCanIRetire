@@ -1,5 +1,5 @@
 - never make changes to main directly, create a branch before making changes, and create a pull request when changes are finalized
-- use conventional commit messages
+- use conventional commit messages, and keep them concise
 - create commits based off of complete units of work
 - before committing, run tests and ensure there are no type checking errors
 - format code with black formatter in pipenv dependencies after code changes
