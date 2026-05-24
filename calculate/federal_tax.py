@@ -81,16 +81,14 @@ def calculate_annual_medicare_tax(user: Person, config: GlobalParameters) -> Dec
 
 
 def calculate_retirement_deductions_excess(
-    user: Person, config: GlobalParameters
+    user: Person, config: GlobalParameters, user_tax: Decimal
 ) -> Decimal:
     """Calculates tax savings achieved by contributing to pre-tax retirement accounts (401(k), HSA)."""
     no_deduction_user = copy.copy(user)
     no_deduction_user.accounts = dict()
     no_deduction_user.income_tax_deductions = Decimal("0")
 
-    return calculate_annual_income_tax(
-        no_deduction_user, config
-    ) - calculate_annual_income_tax(user, config)
+    return calculate_annual_income_tax(no_deduction_user, config) - user_tax
 
 
 def calculate_income_distribution_data(
@@ -127,6 +125,15 @@ def calculate_income_distribution_data(
     remaining_income = user.pre_tax_income - sum(pie_data.values())
     pie_data["Remaining Income"] = remaining_income
 
-    retirement_deductions_excess = calculate_retirement_deductions_excess(user, config)
+    user_tax = (
+        pie_data["Federal Income tax"]
+        + pie_data["Medicare Tax"]
+        + pie_data["Social Security Tax"]
+        + state_tax
+    )
+
+    retirement_deductions_excess = calculate_retirement_deductions_excess(
+        user, config, user_tax
+    )
 
     return pie_data, retirement_deductions_excess
