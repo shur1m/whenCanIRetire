@@ -7,7 +7,6 @@ def test_invalid_parameters_json_missing_current_year():
     invalid_data = {
         # missing CurrentYear
         "2026": {
-            "InflationRate": 0.03,
             "Person": {
                 "current_age": 24,
                 "retirement_age": 50,
@@ -25,7 +24,6 @@ def test_invalid_parameters_json_bad_enum_value():
     invalid_data = {
         "CurrentYear": 2026,
         "2026": {
-            "InflationRate": 0.03,
             "Person": {
                 "current_age": 24,
                 "retirement_age": 50,
@@ -43,6 +41,7 @@ def test_invalid_parameters_json_bad_enum_value():
 def test_invalid_tax_json_missing_federal_tax():
     invalid_data = {
         "2026": {
+            "InflationRate": 0.03,
             # missing FederalTax
             "StateTax": {},
             "FicaTax": {

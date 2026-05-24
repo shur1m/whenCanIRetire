@@ -25,7 +25,7 @@ def parse_parameters() -> tuple[Person, GlobalParameters]:
         filing=person_config.filing,
     )
 
-    for account_name, account_config in yearly_config.Accounts.items():
+    for account_name, account_config in person_config.Accounts.items():
         user.create_account(
             account_name=account_name,
             initial_savings=account_config.initial_savings,
@@ -40,7 +40,7 @@ def parse_parameters() -> tuple[Person, GlobalParameters]:
             account_type=account_config.account_type,
         )
 
-    for expense in yearly_config.Expenses:
+    for expense in person_config.Expenses:
         user.add_accumulation_expense(expense.name, expense.expense, expense.frequency)
 
     # Load and validate tax tables
@@ -53,7 +53,7 @@ def parse_parameters() -> tuple[Person, GlobalParameters]:
 
     config = GlobalParameters(
         year=current_year,
-        inflation_rate=yearly_config.InflationRate,
+        inflation_rate=yearly_tax.InflationRate,
         yearly_tax=yearly_tax,
     )
 

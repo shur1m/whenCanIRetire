@@ -31,13 +31,12 @@ class PersonSchema(BaseModel):
     additional_income_tax_deductions: Decimal = Decimal("0")
     state_of_residence: Optional[State] = None
     filing: Filing = Filing.INDIVIDUAL
+    Accounts: Dict[str, AccountSchema] = Field(default_factory=dict)
+    Expenses: List[ExpenseSchema] = Field(default_factory=list)
 
 
 class YearlyConfigSchema(BaseModel):
-    InflationRate: Decimal = Decimal("0.03")
     Person: PersonSchema
-    Accounts: Dict[str, AccountSchema] = Field(default_factory=dict)
-    Expenses: List[ExpenseSchema] = Field(default_factory=list)
 
 
 class ParametersSchema(BaseModel):
@@ -87,6 +86,7 @@ class FicaTaxSchema(BaseModel):
 
 
 class YearlyTaxSchema(BaseModel):
+    InflationRate: Decimal = Decimal("0.03")
     FederalTax: FederalTaxSchema
     StateTax: Dict[State, StateTaxSchema] = Field(default_factory=dict)
     FicaTax: FicaTaxSchema
