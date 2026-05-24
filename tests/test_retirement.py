@@ -13,6 +13,7 @@ so that any refactor that changes the math will be detected.
 """
 
 import math
+import json
 from decimal import Decimal
 import pytest
 
@@ -27,10 +28,21 @@ from calculate.tax import calculate_annual_income_tax
 from utils.globals import GlobalParameters
 from utils.parameters import Person, Account
 from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State
+from utils.schemas import TaxSchema
 
 # ---------------------------------------------------------------------------
 # Shared setup helper
 # ---------------------------------------------------------------------------
+
+
+def _make_config(year=2024) -> GlobalParameters:
+    with open("config/tax.json") as f:
+        tax_data = TaxSchema.model_validate(json.load(f))
+    return GlobalParameters(
+        year=year,
+        inflation_rate=Decimal("0.03"),
+        yearly_tax=tax_data.root[str(year)],
+    )
 
 
 def _make_person_and_account(
@@ -49,7 +61,7 @@ def _make_person_and_account(
     compound_type=MonthlyCompoundType.ROOT,
     account_type=AccountType.GENERIC,
     state_of_residence=State.TEXAS,
-) -> tuple[Person, Account]:
+) -> tuple[Person, Account, GlobalParameters]:
     user = Person(
         current_age=current_age,
         retirement_age=retirement_age,
@@ -57,7 +69,7 @@ def _make_person_and_account(
         pre_tax_income=pre_tax_income,
         state_of_residence=state_of_residence,
     )
-    GlobalParameters.configure(2024, user)
+    config = _make_config(2024)
     account = Account(
         owner=user,
         initial_savings=initial_savings,
@@ -71,7 +83,7 @@ def _make_person_and_account(
         compound_type=compound_type,
         account_type=account_type,
     )
-    return user, account
+    return user, account, config
 
 
 # ===========================================================================
@@ -86,41 +98,42 @@ class TestAdjustForInflation:
     """
 
     def setup_method(self):
-        # Configure GlobalParameters with a simple user (no state tax needed)
-        user = Person(pre_tax_income=100_000, state_of_residence=State.TEXAS)
-        GlobalParameters.configure(2024, user)
+        self.config = _make_config(2024)
 
     def test_zero_months_no_change(self):
-        result = _adjust_for_inflation(1_000.0, months=0)
+        result = _adjust_for_inflation(1_000.0, months=0, config=self.config)
         assert math.isclose(result, 1_000.0, rel_tol=1e-9)
 
     def test_twelve_months_one_year(self):
         """After 12 months (1 year) at 3%, value = 1000 * 1.03^1 = 1030."""
-        result = _adjust_for_inflation(1_000.0, months=12)
+        result = _adjust_for_inflation(1_000.0, months=12, config=self.config)
         expected = 1_000.0 * 1.03
         assert math.isclose(
             result, expected, rel_tol=1e-6
         ), f"Expected {expected:.4f}, got {result:.4f}"
 
     def test_twenty_four_months_two_years(self):
-        result = _adjust_for_inflation(1_000.0, months=24)
+        result = _adjust_for_inflation(1_000.0, months=24, config=self.config)
         expected = 1_000.0 * (1.03**2)
         assert math.isclose(result, expected, rel_tol=1e-6)
 
     def test_six_months_half_year(self):
         """6 months: value = 1000 * 1.03^(0.5) ≈ 1014.89."""
-        result = _adjust_for_inflation(1_000.0, months=6)
+        result = _adjust_for_inflation(1_000.0, months=6, config=self.config)
         expected = 1_000.0 * math.pow(1.03, 0.5)
         assert math.isclose(result, expected, rel_tol=1e-6)
 
     def test_amount_scales_linearly(self):
         """Doubling the principal doubles the inflation-adjusted amount."""
-        r1 = _adjust_for_inflation(500.0, months=12)
-        r2 = _adjust_for_inflation(1_000.0, months=12)
+        r1 = _adjust_for_inflation(500.0, months=12, config=self.config)
+        r2 = _adjust_for_inflation(1_000.0, months=12, config=self.config)
         assert math.isclose(r2, 2 * r1, rel_tol=1e-9)
 
     def test_monotonically_increases_with_months(self):
-        results = [_adjust_for_inflation(1_000.0, m) for m in range(0, 121, 12)]
+        results = [
+            _adjust_for_inflation(1_000.0, m, config=self.config)
+            for m in range(0, 121, 12)
+        ]
         for i in range(1, len(results)):
             assert (
                 results[i] > results[i - 1]
@@ -140,17 +153,18 @@ class TestCalculatePreTaxIncome:
     """
 
     def setup_method(self):
-        user = Person(pre_tax_income=100_000, state_of_residence=State.TEXAS)
-        GlobalParameters.configure(2024, user)
+        self.user = Person(pre_tax_income=100_000, state_of_residence=State.TEXAS)
+        self.config = _make_config(2024)
 
     def _post_tax(self, pre_tax: Decimal) -> Decimal:
         return pre_tax - calculate_annual_income_tax(
-            Person(pre_tax_income=pre_tax, state_of_residence=State.TEXAS)
+            Person(pre_tax_income=pre_tax, state_of_residence=State.TEXAS),
+            self.config,
         )
 
     def test_round_trip_70k_post_tax(self):
         post_tax_target = 70_000
-        pre_tax = _calculate_pre_tax_income(post_tax_target)
+        pre_tax = _calculate_pre_tax_income(post_tax_target, self.user, self.config)
         recovered_post_tax = self._post_tax(pre_tax)
         assert math.isclose(recovered_post_tax, post_tax_target, abs_tol=0.02), (
             f"Round-trip failed: post_tax({pre_tax:.2f}) = {recovered_post_tax:.2f}, "
@@ -159,20 +173,23 @@ class TestCalculatePreTaxIncome:
 
     def test_round_trip_50k_post_tax(self):
         post_tax_target = 50_000
-        pre_tax = _calculate_pre_tax_income(post_tax_target)
+        pre_tax = _calculate_pre_tax_income(post_tax_target, self.user, self.config)
         recovered_post_tax = self._post_tax(pre_tax)
         assert math.isclose(recovered_post_tax, post_tax_target, abs_tol=0.02)
 
     def test_pre_tax_is_always_greater_than_post_tax(self):
         for post_tax in [30_000, 50_000, 80_000, 100_000]:
-            pre_tax = _calculate_pre_tax_income(post_tax)
+            pre_tax = _calculate_pre_tax_income(post_tax, self.user, self.config)
             assert (
                 pre_tax > post_tax
             ), f"pre_tax ({pre_tax}) should exceed post_tax ({post_tax})"
 
     def test_monotonic(self):
         """Higher post-tax income → higher pre-tax income."""
-        results = [_calculate_pre_tax_income(pt) for pt in [40_000, 60_000, 80_000]]
+        results = [
+            _calculate_pre_tax_income(pt, self.user, self.config)
+            for pt in [40_000, 60_000, 80_000]
+        ]
         assert results == sorted(results), "pre_tax should be monotonically increasing"
 
 
@@ -191,7 +208,7 @@ class TestSimulateAccumulationMonthly:
     """
 
     def _run(self, **kwargs):
-        user, account = _make_person_and_account(**kwargs)
+        user, account, config = _make_person_and_account(**kwargs)
         labels = []
         values = []
         _simulate_accumulation(account, account.initial_savings, labels, values)
@@ -390,7 +407,7 @@ class TestSimulateRetirement:
             pre_tax_income=115_000,
             state_of_residence=State.TEXAS,
         )
-        GlobalParameters.configure(2024, user)
+        config = _make_config(2024)
         account = Account(
             owner=user,
             initial_savings=initial_savings,
@@ -401,7 +418,7 @@ class TestSimulateRetirement:
         )
         labels = []
         values = []
-        _simulate_retirement(account, initial_savings, labels, values)
+        _simulate_retirement(account, initial_savings, labels, values, config)
         return labels, values
 
     def test_runs_out_within_first_year_produces_empty_output(self):
@@ -513,8 +530,6 @@ class TestSimulateRetirement:
         """
         With 0% return AND 0% inflation, balance decreases by annual_expense/12 per month.
         Note: ROTH account → no pre-tax grossing-up.
-        Note: GlobalParameters.inflation_rate must be set AFTER configure() since
-              configure() always resets it to the provided value.
         """
         user = Person(
             current_age=30,
@@ -523,28 +538,23 @@ class TestSimulateRetirement:
             pre_tax_income=115_000,
             state_of_residence=State.TEXAS,
         )
-        GlobalParameters.configure(2024, user)
-        # Override inflation AFTER configure so it is not reset
-        GlobalParameters.inflation_rate = Decimal("0.0")
-        try:
-            account = Account(
-                owner=user,
-                initial_savings=120_000,
-                annual_retirement_post_tax_expense=12_000,  # $1,000/month
-                annual_retirement_return=0.0,
-                compound_frequency=Frequency.MONTHLY,
-                account_type=AccountType.ROTH,  # no tax grossing
-            )
-            labels = []
-            values = []
-            _simulate_retirement(account, Decimal("120000"), labels, values)
-            # After 1 year (12 months) the balance should be 120,000 - 12,000 = 108,000
-            assert math.isclose(
-                values[0], 108_000.0, abs_tol=0.01
-            ), f"Expected 108000.00 after year 1, got {values[0]:.2f}"
-        finally:
-            # Restore a sensible inflation rate for subsequent tests
-            GlobalParameters.inflation_rate = Decimal("0.03")
+        config = _make_config(2024)
+        config.inflation_rate = Decimal("0.0")
+        account = Account(
+            owner=user,
+            initial_savings=120_000,
+            annual_retirement_post_tax_expense=12_000,  # $1,000/month
+            annual_retirement_return=0.0,
+            compound_frequency=Frequency.MONTHLY,
+            account_type=AccountType.ROTH,  # no tax grossing
+        )
+        labels = []
+        values = []
+        _simulate_retirement(account, Decimal("120000"), labels, values, config)
+        # After 1 year (12 months) the balance should be 120,000 - 12,000 = 108,000
+        assert math.isclose(
+            values[0], 108_000.0, abs_tol=0.01
+        ), f"Expected 108000.00 after year 1, got {values[0]:.2f}"
 
 
 # ===========================================================================
@@ -556,7 +566,7 @@ class TestSimulateAccount:
     """Full pipeline: accumulation + retirement."""
 
     def test_labels_cover_full_timeline(self):
-        user, account = _make_person_and_account(
+        user, account, config = _make_person_and_account(
             current_age=30,
             retirement_age=40,
             lifespan=50,
@@ -566,13 +576,13 @@ class TestSimulateAccount:
             annual_retirement_return=0.05,
             account_type=AccountType.ROTH,
         )
-        labels, values = simulate_account(account)
+        labels, values = simulate_account(account, config)
         assert labels[0] == 30, "First label should be current age"
         assert labels[len(labels) - 1] >= 40, "Labels must extend into retirement"
 
     def test_values_peak_at_or_near_retirement(self):
         """Savings grow during accumulation and then decline in retirement."""
-        user, account = _make_person_and_account(
+        user, account, config = _make_person_and_account(
             current_age=30,
             retirement_age=40,
             lifespan=55,
@@ -583,7 +593,7 @@ class TestSimulateAccount:
             annual_investment_return=0.07,
             account_type=AccountType.ROTH,
         )
-        labels, values = simulate_account(account)
+        labels, values = simulate_account(account, config)
         # The max should be somewhere around retirement, not at the very end
         max_value = max(values)
         last_value = values[-1]
@@ -592,16 +602,16 @@ class TestSimulateAccount:
         ), "Portfolio value should peak during/near retirement, not at the end"
 
     def test_lengths_match(self):
-        user, account = _make_person_and_account()
-        labels, values = simulate_account(account)
+        user, account, config = _make_person_and_account()
+        labels, values = simulate_account(account, config)
         assert len(labels) == len(values)
 
     def test_all_values_non_negative(self):
-        user, account = _make_person_and_account(
+        user, account, config = _make_person_and_account(
             account_type=AccountType.ROTH,
             annual_retirement_post_tax_expense=40_000,
         )
-        _, values = simulate_account(account)
+        _, values = simulate_account(account, config)
         # The very last value may be 0 (depleted), but never negative from the loop
         for i, v in enumerate(values[:-1]):
             assert v >= 0, f"Negative balance at index {i}: {v}"
@@ -611,8 +621,7 @@ class TestSimulateAccount:
     def test_pinned_accumulation_10_years_monthly_root_7pct(self):
         """
         10 years, $1,000/month, ROOT monthly compounding at 7%, no increase.
-        Manual calculation (same as TestSimulateAccumulationMonthly.test_monthly_root_compound_one_year
-        extended to 10 years).
+        Manual calculation.
         """
         r_monthly = math.pow(1.07, 1 / 12)
         balance = 0.0
@@ -621,7 +630,7 @@ class TestSimulateAccount:
             balance += 1_000
         expected_at_retirement = balance
 
-        user, account = _make_person_and_account(
+        user, account, config = _make_person_and_account(
             current_age=30,
             retirement_age=40,
             lifespan=40,  # lifespan == retirement_age → no retirement phase
@@ -635,7 +644,7 @@ class TestSimulateAccount:
             account_type=AccountType.ROTH,
             annual_retirement_post_tax_expense=0,
         )
-        labels, values = simulate_account(account)
+        labels, values = simulate_account(account, config)
         # The last value from the accumulation phase (index 9 = age 39)
         assert math.isclose(
             values[9], expected_at_retirement, rel_tol=1e-5

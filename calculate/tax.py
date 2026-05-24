@@ -4,44 +4,35 @@ from utils.parameters import Person
 from utils.globals import GlobalParameters
 
 
-# federal income, state income, social security, medicare
-def calculate_annual_income_tax(user: Person) -> Decimal:
+def calculate_annual_income_tax(user: Person, config: GlobalParameters) -> Decimal:
     return (
-        calculate_annual_federal_income_tax(user)
-        + calculate_annual_social_security_tax(user)
-        + calculate_annual_medicare_tax(user)
-        + calculate_annual_state_income_tax(user)
+        calculate_annual_federal_income_tax(user, config)
+        + calculate_annual_social_security_tax(user, config)
+        + calculate_annual_medicare_tax(user, config)
+        + calculate_annual_state_income_tax(user, config)
     )
 
 
-def calculate_annual_federal_income_tax(user: Person) -> Decimal:
+def calculate_annual_federal_income_tax(
+    user: Person, config: GlobalParameters
+) -> Decimal:
     return _calculate_annual_income_tax(
         user,
-        tax_brackets=(
-            GlobalParameters.fed_individual_tax_brackets
-            if user.filing == Filing.INDIVIDUAL
-            else GlobalParameters.fed_joint_tax_brackets
-        ),
-        tax_deduction=(
-            GlobalParameters.fed_standard_tax_deduction
-            if user.filing == Filing.INDIVIDUAL
-            else GlobalParameters.fed_joint_tax_deduction
-        ),
+        tax_brackets=config.get_fed_tax_brackets(user.filing),
+        tax_deduction=config.get_fed_tax_deduction(user.filing),
     )
 
 
-def calculate_annual_state_income_tax(user: Person) -> Decimal:
-    tax_deduction = (
-        GlobalParameters.state_standard_tax_deduction
-        if user.filing == Filing.INDIVIDUAL
-        else GlobalParameters.state_joint_tax_deduction
-    )
-    additional_state_tax = Decimal("0")
-
+def calculate_annual_state_income_tax(
+    user: Person, config: GlobalParameters
+) -> Decimal:
     if user.state_of_residence == State.TEXAS or user.state_of_residence is None:
         return Decimal("0")
 
-    elif user.state_of_residence == State.CALIFORNIA:
+    tax_deduction = config.get_state_tax_deduction(user.state_of_residence, user.filing)
+    additional_state_tax = Decimal("0")
+
+    if user.state_of_residence == State.CALIFORNIA:
         # SDI tax applies to 401(k) contributions
         # #?not sure if this applies to HSA contributions, although insignificant
         SDI_tax = Decimal("0.011") * (user.pre_tax_income - tax_deduction)
@@ -56,10 +47,8 @@ def calculate_annual_state_income_tax(user: Person) -> Decimal:
 
     return additional_state_tax + _calculate_annual_income_tax(
         user,
-        tax_brackets=(
-            GlobalParameters.state_individual_tax_brackets
-            if user.filing == Filing.INDIVIDUAL
-            else GlobalParameters.state_joint_tax_brackets
+        tax_brackets=config.get_state_tax_brackets(
+            user.state_of_residence, user.filing
         ),
         tax_deduction=tax_deduction,
     )
@@ -88,24 +77,26 @@ def _calculate_annual_income_tax(
     return taxes_owed
 
 
-def calculate_annual_social_security_tax(user: Person) -> Decimal:
+def calculate_annual_social_security_tax(
+    user: Person, config: GlobalParameters
+) -> Decimal:
     social_security_taxable_income = min(
-        user.get_fica_taxable_income(), GlobalParameters.social_security_max_taxable
+        user.get_fica_taxable_income(), config.social_security_max_taxable
     )
-    return social_security_taxable_income * GlobalParameters.social_security_tax_percent
+    return social_security_taxable_income * config.social_security_tax_percent
 
 
-def calculate_annual_medicare_tax(user: Person) -> Decimal:
+def calculate_annual_medicare_tax(user: Person, config: GlobalParameters) -> Decimal:
     taxes_owed = Decimal("0")
     medicare_high_earner_salary = (
-        GlobalParameters.medicare_high_earner_salary_individual
+        config.medicare_high_earner_salary_individual
         if user.filing == Filing.INDIVIDUAL
-        else GlobalParameters.medicare_high_earner_salary_joint
+        else config.medicare_high_earner_salary_joint
     )
-    taxes_owed += user.get_fica_taxable_income() * GlobalParameters.medicare_tax_percent
+    taxes_owed += user.get_fica_taxable_income() * config.medicare_tax_percent
     if user.get_fica_taxable_income() > medicare_high_earner_salary:
         taxes_owed += (
             user.get_fica_taxable_income() - medicare_high_earner_salary
-        ) * GlobalParameters.medicare_high_earner_tax
+        ) * config.medicare_high_earner_tax
 
     return taxes_owed
