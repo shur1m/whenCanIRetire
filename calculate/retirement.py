@@ -1,11 +1,12 @@
-import math
+from typing import Union
+from decimal import Decimal, ROUND_HALF_UP
 from calculate.tax import calculate_annual_income_tax
-from utils.parameters import Person, Account
+from utils.parameters import Person, Account, to_decimal
 from utils.enums import Frequency, MonthlyCompoundType, AccountType
 from utils.globals import GlobalParameters
 
 
-def simulate_account(account: Account):
+def simulate_account(account: Account) -> tuple[list[int], list[Decimal]]:
     graph_labels = []
     graph_savings_values = []
     current_savings = account.initial_savings
@@ -20,65 +21,75 @@ def simulate_account(account: Account):
     return graph_labels, graph_savings_values
 
 
-def _adjust_for_inflation(todays_dollars: float, months: int) -> float:
-    inflation_multiplier = 1 + GlobalParameters.inflation_rate
-    inflation_per_month = math.pow(inflation_multiplier, 1 / 12)
-    return todays_dollars * math.pow(inflation_per_month, months)
+def _adjust_for_inflation(
+    todays_dollars: Union[Decimal, float, int], months: int
+) -> Decimal:
+    todays_dollars_dec = to_decimal(todays_dollars)
+    inflation_rate_dec = to_decimal(GlobalParameters.inflation_rate)
+    inflation_multiplier = Decimal("1") + inflation_rate_dec
+    inflation_per_month = inflation_multiplier ** (Decimal("1") / Decimal("12"))
+    return todays_dollars_dec * (inflation_per_month**months)
 
 
-def _calculate_pre_tax_income(post_tax_income: float):
+def _calculate_pre_tax_income(post_tax_income: Union[Decimal, float, int]) -> Decimal:
     # binary search
-    left = post_tax_income
-    right = post_tax_income * 5
+    post_tax_income_dec = to_decimal(post_tax_income)
+    left = post_tax_income_dec
+    right = post_tax_income_dec * Decimal("5")
     pre_tax_income = right
 
     # stop once error is smaller than cent
-    while abs(right - left) > 0.01:
-        pre_tax_income = left + (right - left) / 2
+    while abs(right - left) > Decimal("0.01"):
+        pre_tax_income = left + (right - left) / Decimal("2")
         if (
             pre_tax_income
             - calculate_annual_income_tax(Person(pre_tax_income=pre_tax_income))
-            > post_tax_income
+            > post_tax_income_dec
         ):
             right = pre_tax_income
         else:
             left = pre_tax_income
 
-    return round(pre_tax_income, 2)
+    return pre_tax_income.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def _simulate_accumulation(
     account: Account,
-    current_savings: float,
+    current_savings: Decimal,
     graph_labels: list[int],
-    graph_savings_values: list[float],
-) -> float:
+    graph_savings_values: list[Decimal],
+) -> Decimal:
     for year in range(account.owner.retirement_age - account.owner.current_age):
         # compounding yearly
         if account.compound_frequency == Frequency.ANNUALLY:
-            current_savings *= 1 + account.annual_investment_return
+            current_savings *= Decimal("1") + account.annual_investment_return
 
         for month in range(12):
             # compounding monthly
             if account.compound_frequency == Frequency.MONTHLY:
                 if account.compound_type == MonthlyCompoundType.DIVIDE:
-                    current_savings *= 1 + account.annual_investment_return / 12
+                    current_savings *= Decimal(
+                        "1"
+                    ) + account.annual_investment_return / Decimal("12")
                 elif account.compound_type == MonthlyCompoundType.ROOT:
-                    current_savings *= math.pow(
-                        1 + account.annual_investment_return, 1 / 12
-                    )
+                    current_savings *= (
+                        Decimal("1") + account.annual_investment_return
+                    ) ** (Decimal("1") / Decimal("12"))
 
             # monthly addition to investment account
             if account.regular_investment_frequency == Frequency.MONTHLY:
-                current_savings += account.regular_investment_dollar * math.pow(
-                    math.pow(1 + account.annual_investment_increase, 1 / 12),
-                    year * 12 + month,
+                current_savings += account.regular_investment_dollar * (
+                    (
+                        (Decimal("1") + account.annual_investment_increase)
+                        ** (Decimal("1") / Decimal("12"))
+                    )
+                    ** (year * 12 + month)
                 )
 
         # yearly addition to investment account
         if account.regular_investment_frequency == Frequency.ANNUALLY:
-            current_savings += account.regular_investment_dollar * math.pow(
-                1 + account.annual_investment_increase, year
+            current_savings += account.regular_investment_dollar * (
+                (Decimal("1") + account.annual_investment_increase) ** year
             )
 
         graph_labels.append(account.owner.current_age + year)
@@ -89,10 +100,10 @@ def _simulate_accumulation(
 
 def _simulate_retirement(
     account: Account,
-    current_savings: float,
+    current_savings: Decimal,
     graph_labels: list[int],
-    graph_savings_values: list[float],
-):
+    graph_savings_values: list[Decimal],
+) -> None:
     # retirement phase (no social security)
     retirement_months = 0
     annual_retirement_withdrawal = account.annual_retirement_post_tax_expense
@@ -107,7 +118,7 @@ def _simulate_retirement(
         )
 
     while (
-        current_savings >= annual_retirement_withdrawal / 12
+        current_savings >= annual_retirement_withdrawal / Decimal("12")
         and account.owner.retirement_age + retirement_months // 12
         < account.owner.lifespan
     ):
@@ -117,16 +128,18 @@ def _simulate_retirement(
             account.owner.retirement_age - account.owner.current_age
         ) * 12 + retirement_months
         current_savings -= _adjust_for_inflation(
-            annual_retirement_withdrawal / 12, months_since_today
+            annual_retirement_withdrawal / Decimal("12"), months_since_today
         )
 
         if account.compound_frequency == Frequency.MONTHLY:
-            current_savings *= math.pow(1 + account.annual_retirement_return, 1 / 12)
+            current_savings *= (Decimal("1") + account.annual_retirement_return) ** (
+                Decimal("1") / Decimal("12")
+            )
         elif (
             account.compound_frequency == Frequency.ANNUALLY
             and retirement_months % 12 == 0
         ):
-            current_savings *= 1 + account.annual_retirement_return
+            current_savings *= Decimal("1") + account.annual_retirement_return
 
         # add to remaining months
         retirement_months += 1
@@ -135,6 +148,6 @@ def _simulate_retirement(
             graph_labels.append(account.owner.retirement_age + retirement_months // 12)
             graph_savings_values.append(current_savings)
 
-    if current_savings < 0:
+    if current_savings < Decimal("0"):
         graph_labels.append(account.owner.retirement_age + retirement_months // 12 + 1)
-        graph_savings_values.append(0)
+        graph_savings_values.append(Decimal("0"))

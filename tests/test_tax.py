@@ -258,6 +258,8 @@ class TestMedicareTax:
         surtax = 50,000  * 0.09   = 4,500.00
         total  = 8,125.00
         """
+        from decimal import Decimal
+
         income = 250_000
         user = Person(
             pre_tax_income=income,
@@ -267,11 +269,13 @@ class TestMedicareTax:
         _setup(user)
         result = calculate_annual_medicare_tax(user)
         # surtax rate is 0.09 (9%) as defined in config/tax.json MedicareHighEarnerTax
-        base = income * 0.0145
-        surtax = (income - 200_000) * GlobalParameters.medicare_high_earner_tax
+        base = Decimal(str(income)) * Decimal("0.0145")
+        surtax = (
+            Decimal(str(income)) - Decimal("200000")
+        ) * GlobalParameters.medicare_high_earner_tax
         expected = base + surtax
         assert math.isclose(
-            result, expected, abs_tol=0.01
+            float(result), float(expected), abs_tol=0.01
         ), f"Expected {expected:.2f}, got {result}"
 
     def test_no_surtax_below_threshold_individual(self):
