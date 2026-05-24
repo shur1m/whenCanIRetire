@@ -16,18 +16,19 @@ from calculate.retirement import simulate_account
 from utils.enums import Frequency
 from utils.parameters import Person
 from utils.parse_parameters import parse_parameters
+from utils.globals import GlobalParameters
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def generate_investment_growth_graph(user: Person, ax: Axes):
+def generate_investment_growth_graph(user: Person, config: GlobalParameters, ax: Axes):
     # calculate and show retirement simulation
     total_savings_graph_labels = []
     total_savings_graph_values: list[Decimal] = []
 
     for account_name, account in user.accounts.items():
-        graph_labels, graph_savings_values = simulate_account(account)
+        graph_labels, graph_savings_values = simulate_account(account, config)
         float_savings_values = [float(v) for v in graph_savings_values]
         ax.plot(graph_labels, float_savings_values, label=account_name)
 
@@ -57,19 +58,22 @@ def generate_investment_growth_graph(user: Person, ax: Axes):
     ax.set_ylabel("investment savings (dollars)")
 
 
-def generate_income_distribution_graph(user: Person, ax: Axes):
+def generate_income_distribution_graph(
+    user: Person, config: GlobalParameters, ax: Axes
+):
     # calculate and show income pie chart
     # add taxes
     pie_labels = ["Federal Income tax", "Medicare Tax", "Social Security Tax"]
     pie_sizes: list[Decimal] = [
-        calculate_annual_federal_income_tax(user),
-        calculate_annual_medicare_tax(user),
-        calculate_annual_social_security_tax(user),
+        calculate_annual_federal_income_tax(user, config),
+        calculate_annual_medicare_tax(user, config),
+        calculate_annual_social_security_tax(user, config),
     ]
 
-    if calculate_annual_state_income_tax(user) > Decimal("0"):
+    state_tax = calculate_annual_state_income_tax(user, config)
+    if state_tax > Decimal("0"):
         pie_labels.append("State Tax")
-        pie_sizes.append(calculate_annual_state_income_tax(user))
+        pie_sizes.append(state_tax)
 
     # add account contributions
     for account_name, account in user.accounts.items():
@@ -107,8 +111,8 @@ def generate_income_distribution_graph(user: Person, ax: Axes):
     no_deduction_user.accounts = dict()
     no_deduction_user.income_tax_deductions = Decimal("0")
     retirement_deductions_excess = calculate_annual_income_tax(
-        no_deduction_user
-    ) - calculate_annual_income_tax(user)
+        no_deduction_user, config
+    ) - calculate_annual_income_tax(user, config)
 
     ax.pie(
         [float(size) for size in pie_sizes],
@@ -129,7 +133,7 @@ def generate_income_distribution_graph(user: Person, ax: Axes):
 
 
 def main():
-    user = parse_parameters()
+    user, config = parse_parameters()
 
     # TODO company match, needs to be changed so that contribution does not subtract from pay
     # HSA company match
@@ -140,24 +144,10 @@ def main():
     #                     annual_retirement_post_tax_expense=16_000), "HSA company match")
 
     fig, (ax1, ax2) = plt.subplots(1, 2)  # type: ignore
-    generate_investment_growth_graph(user, ax1)
-    generate_income_distribution_graph(user, ax2)
+    generate_investment_growth_graph(user, config, ax1)
+    generate_income_distribution_graph(user, config, ax2)
     plt.show()
 
 
 if __name__ == "__main__":
     main()
-
-# ! allow company contributions to retirement accounts to not affect your total money in pie chart
-# ! calculate how much to withdraw each year from account in order to end at the death age
-#   - should be a toggle in account T/F
-# ! allow users to compare two different plans for investment in one run
-# ! add toggle for post tax income, so that tax is not calculated
-# ! add toggle for company matches that does not subtract from pay, also add another text for company match total. Company match should not show up in pie.
-# ! show how much money withdrawn from each account during retirement phase
-# ! calculate total money spent (post tax income during accumulation + post tax withdrawal during retirement)
-# ! automatically calculate retirement expense to end at life expectancy
-# ! allow user to set timespan during the accumulation phase where they are contributing
-#  - (useful for hsa where only young people can contribute because they are healthy)
-# ! allow user to set timespan during retirement phase where they are withdrawing
-# ! nice to have: ui and dynamic changes, options for bankers rounding vs normal rounding to whole numbers

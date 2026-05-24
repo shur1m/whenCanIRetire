@@ -6,7 +6,9 @@ from utils.enums import Frequency, MonthlyCompoundType, AccountType
 from utils.globals import GlobalParameters
 
 
-def simulate_account(account: Account) -> tuple[list[int], list[Decimal]]:
+def simulate_account(
+    account: Account, config: GlobalParameters
+) -> tuple[list[int], list[Decimal]]:
     graph_labels = []
     graph_savings_values = []
     current_savings = account.initial_savings
@@ -15,23 +17,33 @@ def simulate_account(account: Account) -> tuple[list[int], list[Decimal]]:
         account, current_savings, graph_labels, graph_savings_values
     )
     _simulate_retirement(
-        account, savings_at_retirement, graph_labels, graph_savings_values
+        account,
+        savings_at_retirement,
+        graph_labels,
+        graph_savings_values,
+        config,
     )
 
     return graph_labels, graph_savings_values
 
 
 def _adjust_for_inflation(
-    todays_dollars: Union[Decimal, float, int], months: int
+    todays_dollars: Union[Decimal, float, int],
+    months: int,
+    config: GlobalParameters,
 ) -> Decimal:
     todays_dollars_dec = to_decimal(todays_dollars)
-    inflation_rate_dec = to_decimal(GlobalParameters.inflation_rate)
+    inflation_rate_dec = config.inflation_rate
     inflation_multiplier = Decimal("1") + inflation_rate_dec
     inflation_per_month = inflation_multiplier ** (Decimal("1") / Decimal("12"))
     return todays_dollars_dec * (inflation_per_month**months)
 
 
-def _calculate_pre_tax_income(post_tax_income: Union[Decimal, float, int]) -> Decimal:
+def _calculate_pre_tax_income(
+    post_tax_income: Union[Decimal, float, int],
+    user: Person,
+    config: GlobalParameters,
+) -> Decimal:
     # binary search
     post_tax_income_dec = to_decimal(post_tax_income)
     left = post_tax_income_dec
@@ -41,9 +53,14 @@ def _calculate_pre_tax_income(post_tax_income: Union[Decimal, float, int]) -> De
     # stop once error is smaller than cent
     while abs(right - left) > Decimal("0.01"):
         pre_tax_income = left + (right - left) / Decimal("2")
+        # create dummy person using the actual user's state and filing status
+        dummy_person = Person(
+            pre_tax_income=pre_tax_income,
+            state_of_residence=user.state_of_residence,
+            filing=user.filing,
+        )
         if (
-            pre_tax_income
-            - calculate_annual_income_tax(Person(pre_tax_income=pre_tax_income))
+            pre_tax_income - calculate_annual_income_tax(dummy_person, config)
             > post_tax_income_dec
         ):
             right = pre_tax_income
@@ -103,6 +120,7 @@ def _simulate_retirement(
     current_savings: Decimal,
     graph_labels: list[int],
     graph_savings_values: list[Decimal],
+    config: GlobalParameters,
 ) -> None:
     # retirement phase (no social security)
     retirement_months = 0
@@ -114,7 +132,7 @@ def _simulate_retirement(
         or account.account_type == AccountType.TRADITIONAL
     ):
         annual_retirement_withdrawal = _calculate_pre_tax_income(
-            annual_retirement_withdrawal
+            annual_retirement_withdrawal, account.owner, config
         )
 
     while (
@@ -128,7 +146,9 @@ def _simulate_retirement(
             account.owner.retirement_age - account.owner.current_age
         ) * 12 + retirement_months
         current_savings -= _adjust_for_inflation(
-            annual_retirement_withdrawal / Decimal("12"), months_since_today
+            annual_retirement_withdrawal / Decimal("12"),
+            months_since_today,
+            config,
         )
 
         if account.compound_frequency == Frequency.MONTHLY:
