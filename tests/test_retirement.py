@@ -24,11 +24,15 @@ from calculate.retirement import (
     _simulate_accumulation,
     _simulate_retirement,
 )
-from calculate.tax import calculate_annual_income_tax
+from calculate.federal_tax import calculate_annual_income_tax
 from utils.globals import GlobalParameters
 from utils.parameters import Person, Account
 from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State
 from utils.schemas import TaxSchema
+
+# Load and validate tax tables once at module scope to eliminate file I/O overhead in tests
+with open("config/tax.json") as _f:
+    _TAX_DATA = TaxSchema.model_validate(json.load(_f))
 
 # ---------------------------------------------------------------------------
 # Shared setup helper
@@ -36,12 +40,10 @@ from utils.schemas import TaxSchema
 
 
 def _make_config(year=2024) -> GlobalParameters:
-    with open("config/tax.json") as f:
-        tax_data = TaxSchema.model_validate(json.load(f))
     return GlobalParameters(
         year=year,
         inflation_rate=Decimal("0.03"),
-        yearly_tax=tax_data.root[str(year)],
+        yearly_tax=_TAX_DATA.root[str(year)],
     )
 
 

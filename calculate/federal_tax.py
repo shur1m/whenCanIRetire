@@ -1,7 +1,9 @@
 from decimal import Decimal
-from utils.enums import Filing, State
+import copy
+from utils.enums import Filing, State, Frequency
 from utils.parameters import Person
 from utils.globals import GlobalParameters
+from calculate.state_tax import get_state_tax_calculator
 
 
 def calculate_annual_income_tax(user: Person, config: GlobalParameters) -> Decimal:
@@ -26,32 +28,8 @@ def calculate_annual_federal_income_tax(
 def calculate_annual_state_income_tax(
     user: Person, config: GlobalParameters
 ) -> Decimal:
-    if user.state_of_residence == State.TEXAS or user.state_of_residence is None:
-        return Decimal("0")
-
-    tax_deduction = config.get_state_tax_deduction(user.state_of_residence, user.filing)
-    additional_state_tax = Decimal("0")
-
-    if user.state_of_residence == State.CALIFORNIA:
-        # SDI tax applies to 401(k) contributions
-        # #?not sure if this applies to HSA contributions, although insignificant
-        SDI_tax = Decimal("0.011") * (user.pre_tax_income - tax_deduction)
-        MHS_tax = (
-            Decimal("0.01") * (user.get_reduced_income() - tax_deduction)
-            if user.get_reduced_income() > Decimal("1000000")
-            else Decimal("0")
-        )  # mental health services tax TODO need to change this to 2million for joint filers
-        additional_state_tax += SDI_tax + MHS_tax
-
-    # TODO add a New York statement
-
-    return additional_state_tax + _calculate_annual_income_tax(
-        user,
-        tax_brackets=config.get_state_tax_brackets(
-            user.state_of_residence, user.filing
-        ),
-        tax_deduction=tax_deduction,
-    )
+    calculator = get_state_tax_calculator(user.state_of_residence)
+    return calculator.calculate_tax(user, config)
 
 
 def _calculate_annual_income_tax(
@@ -100,3 +78,49 @@ def calculate_annual_medicare_tax(user: Person, config: GlobalParameters) -> Dec
         ) * config.medicare_high_earner_tax
 
     return taxes_owed
+
+
+def calculate_income_distribution_data(
+    user: Person, config: GlobalParameters
+) -> tuple[dict[str, Decimal], Decimal]:
+    """Calculates distribution of gross annual income across categories (taxes, contributions, expenses)
+
+    and returns (pie_data, retirement_deductions_excess).
+    """
+    pie_data: dict[str, Decimal] = {
+        "Federal Income tax": calculate_annual_federal_income_tax(user, config),
+        "Medicare Tax": calculate_annual_medicare_tax(user, config),
+        "Social Security Tax": calculate_annual_social_security_tax(user, config),
+    }
+
+    state_tax = calculate_annual_state_income_tax(user, config)
+    if state_tax > Decimal("0"):
+        pie_data["State Tax"] = state_tax
+
+    # Add account contributions
+    for account_name, account in user.accounts.items():
+        retirement_contributions = Decimal("0")
+        if account.regular_investment_frequency == Frequency.MONTHLY:
+            retirement_contributions = account.regular_investment_dollar * 12
+        elif account.regular_investment_frequency == Frequency.ANNUALLY:
+            retirement_contributions = account.regular_investment_dollar
+        pie_data[account_name + " contribution"] = retirement_contributions
+
+    # Add other expenses
+    for expense_name, expense in user.accumulation_phase_expenses.items():
+        pie_data[expense_name] = expense
+
+    # Add remaining income
+    remaining_income = user.pre_tax_income - sum(pie_data.values())
+    pie_data["Remaining Income"] = remaining_income
+
+    # Calculate post tax income without 401k/hsa deductions to find tax savings
+    no_deduction_user = copy.copy(user)
+    no_deduction_user.accounts = dict()
+    no_deduction_user.income_tax_deductions = Decimal("0")
+
+    retirement_deductions_excess = calculate_annual_income_tax(
+        no_deduction_user, config
+    ) - calculate_annual_income_tax(user, config)
+
+    return pie_data, retirement_deductions_excess

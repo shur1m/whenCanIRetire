@@ -1,17 +1,10 @@
 from decimal import Decimal
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
-import copy
 import logging
 import json
 
-from calculate.tax import (
-    calculate_annual_income_tax,
-    calculate_annual_state_income_tax,
-    calculate_annual_federal_income_tax,
-    calculate_annual_social_security_tax,
-    calculate_annual_medicare_tax,
-)
+from calculate.federal_tax import calculate_income_distribution_data
 from calculate.retirement import simulate_account
 from utils.enums import Frequency
 from utils.parameters import Person
@@ -61,42 +54,13 @@ def generate_investment_growth_graph(user: Person, config: GlobalParameters, ax:
 def generate_income_distribution_graph(
     user: Person, config: GlobalParameters, ax: Axes
 ):
-    # calculate and show income pie chart
-    # add taxes
-    pie_labels = ["Federal Income tax", "Medicare Tax", "Social Security Tax"]
-    pie_sizes: list[Decimal] = [
-        calculate_annual_federal_income_tax(user, config),
-        calculate_annual_medicare_tax(user, config),
-        calculate_annual_social_security_tax(user, config),
-    ]
+    # Retrieve decoupled income distribution data
+    pie_data, retirement_deductions_excess = calculate_income_distribution_data(
+        user, config
+    )
 
-    state_tax = calculate_annual_state_income_tax(user, config)
-    if state_tax > Decimal("0"):
-        pie_labels.append("State Tax")
-        pie_sizes.append(state_tax)
-
-    # add account contributions
-    for account_name, account in user.accounts.items():
-        retirement_contributions = Decimal("0")
-
-        if account.regular_investment_frequency == Frequency.MONTHLY:
-            retirement_contributions = account.regular_investment_dollar * 12
-        elif account.regular_investment_frequency == Frequency.ANNUALLY:
-            retirement_contributions = account.regular_investment_dollar
-
-        pie_labels.append(account_name + " contribution")
-        pie_sizes.append(retirement_contributions)
-
-    # add other expenses
-    for expense_name, expense in user.accumulation_phase_expenses.items():
-        pie_labels.append(expense_name)
-        pie_sizes.append(expense)
-
-    remaining_income = user.pre_tax_income - sum(
-        pie_sizes
-    )  # annual value including 401k contributions
-    pie_labels.append("Remaining Income")
-    pie_sizes.append(remaining_income)
+    pie_labels = list(pie_data.keys())
+    pie_sizes = list(pie_data.values())
 
     def autopct_format(values):
         def percent_and_dollar_value(pct):
@@ -105,14 +69,6 @@ def generate_income_distribution_graph(
             return "{:.2f}% (${:.2f})".format(pct, val)
 
         return percent_and_dollar_value
-
-    # calculate post tax income  without 401k/hsa deductions
-    no_deduction_user = copy.copy(user)
-    no_deduction_user.accounts = dict()
-    no_deduction_user.income_tax_deductions = Decimal("0")
-    retirement_deductions_excess = calculate_annual_income_tax(
-        no_deduction_user, config
-    ) - calculate_annual_income_tax(user, config)
 
     ax.pie(
         [float(size) for size in pie_sizes],
