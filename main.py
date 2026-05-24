@@ -73,7 +73,7 @@ def generate_income_distribution_graph(user: Person, ax: Axes):
 
     # add account contributions
     for account_name, account in user.accounts.items():
-        retirement_contributions: Decimal
+        retirement_contributions = Decimal("0")
 
         if account.regular_investment_frequency == Frequency.MONTHLY:
             retirement_contributions = account.regular_investment_dollar * 12

@@ -1,3 +1,4 @@
+from typing import Union
 from decimal import Decimal, ROUND_HALF_UP
 from calculate.tax import calculate_annual_income_tax
 from utils.parameters import Person, Account, to_decimal
@@ -20,7 +21,9 @@ def simulate_account(account: Account) -> tuple[list[int], list[Decimal]]:
     return graph_labels, graph_savings_values
 
 
-def _adjust_for_inflation(todays_dollars: Decimal, months: int) -> Decimal:
+def _adjust_for_inflation(
+    todays_dollars: Union[Decimal, float, int], months: int
+) -> Decimal:
     todays_dollars_dec = to_decimal(todays_dollars)
     inflation_rate_dec = to_decimal(GlobalParameters.inflation_rate)
     inflation_multiplier = Decimal("1") + inflation_rate_dec
@@ -28,10 +31,11 @@ def _adjust_for_inflation(todays_dollars: Decimal, months: int) -> Decimal:
     return todays_dollars_dec * (inflation_per_month**months)
 
 
-def _calculate_pre_tax_income(post_tax_income: Decimal) -> Decimal:
+def _calculate_pre_tax_income(post_tax_income: Union[Decimal, float, int]) -> Decimal:
     # binary search
-    left = post_tax_income
-    right = post_tax_income * Decimal("5")
+    post_tax_income_dec = to_decimal(post_tax_income)
+    left = post_tax_income_dec
+    right = post_tax_income_dec * Decimal("5")
     pre_tax_income = right
 
     # stop once error is smaller than cent
@@ -40,7 +44,7 @@ def _calculate_pre_tax_income(post_tax_income: Decimal) -> Decimal:
         if (
             pre_tax_income
             - calculate_annual_income_tax(Person(pre_tax_income=pre_tax_income))
-            > post_tax_income
+            > post_tax_income_dec
         ):
             right = pre_tax_income
         else:

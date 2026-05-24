@@ -1,4 +1,6 @@
 - use conventional commit messages
 - format code with black formatter in pipenv dependencies after code changes
-- run tests with pipenv run, and install dependencies using pipenv
+- before committing, run tests and ensure there are no type checking errors
+- when running tests, use pipenv run pytest
+- when installing dependencies, use pipenv
 - keep things simple

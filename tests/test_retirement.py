@@ -13,6 +13,7 @@ so that any refactor that changes the math will be detected.
 """
 
 import math
+from decimal import Decimal
 import pytest
 
 from calculate.retirement import (
@@ -142,7 +143,7 @@ class TestCalculatePreTaxIncome:
         user = Person(pre_tax_income=100_000, state_of_residence=State.TEXAS)
         GlobalParameters.configure(2024, user)
 
-    def _post_tax(self, pre_tax: float) -> float:
+    def _post_tax(self, pre_tax: Decimal) -> Decimal:
         return pre_tax - calculate_annual_income_tax(
             Person(pre_tax_income=pre_tax, state_of_residence=State.TEXAS)
         )
@@ -524,7 +525,7 @@ class TestSimulateRetirement:
         )
         GlobalParameters.configure(2024, user)
         # Override inflation AFTER configure so it is not reset
-        GlobalParameters.inflation_rate = 0.0
+        GlobalParameters.inflation_rate = Decimal("0.0")
         try:
             account = Account(
                 owner=user,
@@ -536,14 +537,14 @@ class TestSimulateRetirement:
             )
             labels = []
             values = []
-            _simulate_retirement(account, 120_000, labels, values)
+            _simulate_retirement(account, Decimal("120000"), labels, values)
             # After 1 year (12 months) the balance should be 120,000 - 12,000 = 108,000
             assert math.isclose(
                 values[0], 108_000.0, abs_tol=0.01
             ), f"Expected 108000.00 after year 1, got {values[0]:.2f}"
         finally:
             # Restore a sensible inflation rate for subsequent tests
-            GlobalParameters.inflation_rate = 0.03
+            GlobalParameters.inflation_rate = Decimal("0.03")
 
 
 # ===========================================================================
