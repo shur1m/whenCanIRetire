@@ -151,3 +151,17 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# ! allow company contributions to retirement accounts to not affect your total money in pie chart
+# ! calculate how much to withdraw each year from account in order to end at the death age
+#   - should be a toggle in account T/F
+# ! allow users to compare two different plans for investment in one run
+# ! add toggle for post tax income, so that tax is not calculated
+# ! add toggle for company matches that does not subtract from pay, also add another text for company match total. Company match should not show up in pie.
+# ! show how much money withdrawn from each account during retirement phase
+# ! calculate total money spent (post tax income during accumulation + post tax withdrawal during retirement)
+# ! automatically calculate retirement expense to end at life expectancy
+# ! allow user to set timespan during the accumulation phase where they are contributing
+#  - (useful for hsa where only young people can contribute because they are healthy)
+# ! allow user to set timespan during retirement phase where they are withdrawing
+# ! nice to have: ui and dynamic changes, options for bankers rounding vs normal rounding to whole numbers
