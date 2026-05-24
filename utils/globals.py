@@ -7,28 +7,28 @@ logger = logging.getLogger(__name__)
 
 
 class GlobalParameters:
-    year = None
+    year: str | None = None
     inflation_rate: float = 0.03
 
     # federal tax brackets (percentage, floor/bottom value of bracket)
-    fed_individual_tax_brackets: list[tuple[int, int]] = []
-    fed_joint_tax_brackets: list[tuple[int, int]] = []
+    fed_individual_tax_brackets: list[tuple[float, int]] = []
+    fed_joint_tax_brackets: list[tuple[float, int]] = []
     fed_standard_tax_deduction: int = 0
     fed_joint_tax_deduction: int = 0
 
     # state tax brackets
-    state_individual_tax_brackets: list[tuple[int, int]] = []
-    state_joint_tax_brackets: list[tuple[int, int]] = []
+    state_individual_tax_brackets: list[tuple[float, int]] = []
+    state_joint_tax_brackets: list[tuple[float, int]] = []
     state_standard_tax_deduction: int = 0
     state_joint_tax_deduction: int = 0
 
     social_security_max_taxable: int = 0
-    social_security_tax_percent: int = 0
+    social_security_tax_percent: float = 0.0
 
-    medicare_high_earner_tax = None
-    medicare_high_earner_salary_individual = None
-    medicare_high_earner_salary_joint = None
-    medicare_tax_percent = None  # different if you are self-employed
+    medicare_high_earner_tax: float = 0.0
+    medicare_high_earner_salary_individual: int = 0
+    medicare_high_earner_salary_joint: int = 0
+    medicare_tax_percent: float = 0.0  # different if you are self-employed
 
     @classmethod
     def configure(cls, year: int, user: Person, inflation_rate=0.03) -> None:

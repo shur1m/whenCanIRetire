@@ -11,7 +11,7 @@ class Account:
         initial_savings: int = 0,
         regular_investment_dollar: int = 1666,
         regular_investment_frequency: Frequency = Frequency.MONTHLY,
-        annual_investment_increase: int = 0,
+        annual_investment_increase: float = 0.0,
         annual_investment_return: float = 0.07,
         annual_retirement_return: float = 0.05,
         annual_retirement_post_tax_expense: int = 72_000,
@@ -24,9 +24,10 @@ class Account:
         self.initial_savings: int = initial_savings
         self.regular_investment_dollar: int = regular_investment_dollar
         self.regular_investment_frequency: Frequency = regular_investment_frequency
-        self.annual_investment_increase: int = (
+        self.annual_investment_increase: float = (
             annual_investment_increase  # percentage, how much you will contribute more next year
         )
+
         self.annual_investment_return: float = annual_investment_return
         self.annual_retirement_return = annual_retirement_return
         self.annual_retirement_post_tax_expense = annual_retirement_post_tax_expense

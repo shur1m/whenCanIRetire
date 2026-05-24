@@ -21,6 +21,7 @@ tax tables in config/tax.json.
   Social Security: 6.2% on up to $168,600
   Medicare: 1.45% on all; +0.9% above $200k (individual) / $250k (joint)
 """
+
 import math
 import pytest
 
@@ -35,12 +36,12 @@ from utils.globals import GlobalParameters
 from utils.parameters import Person, Account
 from utils.enums import Filing, Frequency, AccountType, State
 
-
 # ---------------------------------------------------------------------------
 # Helper – ensures GlobalParameters is loaded for the right year/user before
 # every assertion.  Tests call this directly when the fixture user doesn't
 # match the scenario being tested.
 # ---------------------------------------------------------------------------
+
 
 def _setup(user: Person, year: int = 2024) -> None:
     GlobalParameters.configure(year, user)
@@ -49,6 +50,7 @@ def _setup(user: Person, year: int = 2024) -> None:
 # ===========================================================================
 # calculate_annual_federal_income_tax
 # ===========================================================================
+
 
 class TestFederalIncomeTax:
     """
@@ -72,9 +74,9 @@ class TestFederalIncomeTax:
           Subtotal ≈ 17,141 (small float rounding expected)
         """
         result = calculate_annual_federal_income_tax(person_tx_115k)
-        assert math.isclose(result, 17_141.00, abs_tol=1.0), (
-            f"Expected ~17141.00, got {result}"
-        )
+        assert math.isclose(
+            result, 17_141.00, abs_tol=1.0
+        ), f"Expected ~17141.00, got {result}"
 
     def test_zero_income_no_federal_tax(self):
         """Income below the standard deduction → taxable income ≤ 0 → no tax."""
@@ -109,9 +111,9 @@ class TestFederalIncomeTax:
         _setup(individual_user)
         individual_result = calculate_annual_federal_income_tax(individual_user)
 
-        assert joint_result < individual_result, (
-            "Joint filers should pay less tax than individual filers at the same income"
-        )
+        assert (
+            joint_result < individual_result
+        ), "Joint filers should pay less tax than individual filers at the same income"
 
     def test_401k_deduction_reduces_federal_tax(self):
         """Traditional 401(k) contribution reduces taxable income and therefore tax."""
@@ -130,9 +132,9 @@ class TestFederalIncomeTax:
         )
         tax_with_deduction = calculate_annual_federal_income_tax(user_with_401k)
 
-        assert tax_with_deduction < tax_no_deduction, (
-            "401(k) deductions should reduce federal income tax"
-        )
+        assert (
+            tax_with_deduction < tax_no_deduction
+        ), "401(k) deductions should reduce federal income tax"
 
     def test_roth_does_not_reduce_federal_tax(self):
         """Roth contributions are post-tax; they must NOT reduce federal income tax."""
@@ -151,14 +153,15 @@ class TestFederalIncomeTax:
         )
         tax_with_roth = calculate_annual_federal_income_tax(user_roth)
 
-        assert math.isclose(tax_no_account, tax_with_roth, abs_tol=0.01), (
-            "Roth contributions should not change federal tax"
-        )
+        assert math.isclose(
+            tax_no_account, tax_with_roth, abs_tol=0.01
+        ), "Roth contributions should not change federal tax"
 
 
 # ===========================================================================
 # calculate_annual_social_security_tax
 # ===========================================================================
+
 
 class TestSocialSecurityTax:
     """
@@ -168,9 +171,9 @@ class TestSocialSecurityTax:
     def test_single_115k_social_security(self, person_tx_115k):
         # 115,000 * 0.062 = 7,130
         result = calculate_annual_social_security_tax(person_tx_115k)
-        assert math.isclose(result, 7_130.00, abs_tol=0.01), (
-            f"Expected 7130.00, got {result}"
-        )
+        assert math.isclose(
+            result, 7_130.00, abs_tol=0.01
+        ), f"Expected 7130.00, got {result}"
 
     def test_income_above_cap_is_capped(self):
         """Income above $168,600 → SS tax = 168,600 * 6.2% = 10,453.20."""
@@ -178,9 +181,9 @@ class TestSocialSecurityTax:
         _setup(user)
         result = calculate_annual_social_security_tax(user)
         expected = 168_600 * 0.062
-        assert math.isclose(result, expected, abs_tol=0.01), (
-            f"Expected {expected:.2f} (capped), got {result}"
-        )
+        assert math.isclose(
+            result, expected, abs_tol=0.01
+        ), f"Expected {expected:.2f} (capped), got {result}"
 
     def test_income_exactly_at_cap(self):
         user = Person(pre_tax_income=168_600, state_of_residence=State.TEXAS)
@@ -225,14 +228,15 @@ class TestSocialSecurityTax:
         )
         ss_with_401k = calculate_annual_social_security_tax(user_401k)
 
-        assert math.isclose(ss_no_account, ss_with_401k, abs_tol=0.01), (
-            "401(k) should not change SS taxable income"
-        )
+        assert math.isclose(
+            ss_no_account, ss_with_401k, abs_tol=0.01
+        ), "401(k) should not change SS taxable income"
 
 
 # ===========================================================================
 # calculate_annual_medicare_tax
 # ===========================================================================
+
 
 class TestMedicareTax:
     """
@@ -242,9 +246,9 @@ class TestMedicareTax:
     def test_single_115k_medicare(self, person_tx_115k):
         # 115,000 * 0.0145 = 1,667.50
         result = calculate_annual_medicare_tax(person_tx_115k)
-        assert math.isclose(result, 1_667.50, abs_tol=0.01), (
-            f"Expected 1667.50, got {result}"
-        )
+        assert math.isclose(
+            result, 1_667.50, abs_tol=0.01
+        ), f"Expected 1667.50, got {result}"
 
     def test_high_earner_surtax_individual(self):
         """
@@ -266,9 +270,9 @@ class TestMedicareTax:
         base = income * 0.0145
         surtax = (income - 200_000) * GlobalParameters.medicare_high_earner_tax
         expected = base + surtax
-        assert math.isclose(result, expected, abs_tol=0.01), (
-            f"Expected {expected:.2f}, got {result}"
-        )
+        assert math.isclose(
+            result, expected, abs_tol=0.01
+        ), f"Expected {expected:.2f}, got {result}"
 
     def test_no_surtax_below_threshold_individual(self):
         """Individual earning exactly at the $200k threshold: no surtax applies."""
@@ -294,14 +298,15 @@ class TestMedicareTax:
         _setup(user_joint)
         result = calculate_annual_medicare_tax(user_joint)
         expected = income * 0.0145  # no surtax
-        assert math.isclose(result, expected, abs_tol=0.01), (
-            f"Joint filer at $230k should not pay surtax; expected {expected:.2f}, got {result}"
-        )
+        assert math.isclose(
+            result, expected, abs_tol=0.01
+        ), f"Joint filer at $230k should not pay surtax; expected {expected:.2f}, got {result}"
 
 
 # ===========================================================================
 # calculate_annual_state_income_tax
 # ===========================================================================
+
 
 class TestStateIncomeTax:
     def test_texas_no_state_tax(self, person_tx_115k):
@@ -333,9 +338,9 @@ class TestStateIncomeTax:
         """
         sdi_floor = 0.011 * (115_000 - 5_363)
         result = calculate_annual_state_income_tax(person_ca_115k)
-        assert result >= sdi_floor, (
-            f"CA state tax should include SDI (≥ {sdi_floor:.2f}), got {result:.2f}"
-        )
+        assert (
+            result >= sdi_floor
+        ), f"CA state tax should include SDI (≥ {sdi_floor:.2f}), got {result:.2f}"
 
     def test_california_115k_state_tax_exact(self, person_ca_115k):
         """
@@ -354,14 +359,15 @@ class TestStateIncomeTax:
         Total CA state tax ≈ 8,055.10
         """
         result = calculate_annual_state_income_tax(person_ca_115k)
-        assert math.isclose(result, 8_055.10, abs_tol=1.0), (
-            f"Expected CA state tax ~8055.10, got {result:.2f}"
-        )
+        assert math.isclose(
+            result, 8_055.10, abs_tol=1.0
+        ), f"Expected CA state tax ~8055.10, got {result:.2f}"
 
 
 # ===========================================================================
 # calculate_annual_income_tax (total)
 # ===========================================================================
+
 
 class TestTotalIncomeTax:
     def test_total_is_sum_of_components(self, person_tx_115k):
@@ -372,9 +378,9 @@ class TestTotalIncomeTax:
         medicare = calculate_annual_medicare_tax(person_tx_115k)
         total = calculate_annual_income_tax(person_tx_115k)
 
-        assert math.isclose(total, federal + state + ss + medicare, abs_tol=0.01), (
-            f"Total tax {total} != components sum {federal + state + ss + medicare}"
-        )
+        assert math.isclose(
+            total, federal + state + ss + medicare, abs_tol=0.01
+        ), f"Total tax {total} != components sum {federal + state + ss + medicare}"
 
     def test_total_texas_115k_pinned(self, person_tx_115k):
         """
@@ -383,9 +389,9 @@ class TestTotalIncomeTax:
         Total ≈ 25,938.50
         """
         result = calculate_annual_income_tax(person_tx_115k)
-        assert math.isclose(result, 25_938.50, abs_tol=1.0), (
-            f"Expected ~25938.50 total tax, got {result:.2f}"
-        )
+        assert math.isclose(
+            result, 25_938.50, abs_tol=1.0
+        ), f"Expected ~25938.50 total tax, got {result:.2f}"
 
     def test_total_california_115k_higher_than_texas(
         self, person_tx_115k, person_ca_115k

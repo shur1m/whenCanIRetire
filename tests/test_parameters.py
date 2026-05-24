@@ -8,14 +8,15 @@ Covers Person and Account model behaviors:
   - income_tax_deductions accumulation
   - add_accumulation_expense (monthly vs annual normalization)
 """
+
 import pytest
 from utils.parameters import Person, Account
 from utils.enums import Filing, Frequency, AccountType, State
 
-
 # ===========================================================================
 # Person.get_reduced_income
 # ===========================================================================
+
 
 class TestGetReducedIncome:
     def test_no_deductions_returns_full_income(self):
@@ -103,6 +104,7 @@ class TestGetReducedIncome:
 # Person.get_fica_taxable_income
 # ===========================================================================
 
+
 class TestGetFicaTaxableIncome:
     def test_no_accounts_full_income(self):
         user = Person(pre_tax_income=100_000)
@@ -155,6 +157,7 @@ class TestGetFicaTaxableIncome:
 # Person.add_account – validation
 # ===========================================================================
 
+
 class TestAddAccount:
     def test_wrong_owner_raises_value_error(self):
         user1 = Person(pre_tax_income=100_000)
@@ -185,6 +188,7 @@ class TestAddAccount:
 # ===========================================================================
 # Person.add_accumulation_expense
 # ===========================================================================
+
 
 class TestAddAccumulationExpense:
     def test_monthly_expense_stored_as_annual(self):

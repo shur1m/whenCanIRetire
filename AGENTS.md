@@ -1,0 +1,4 @@
+- use conventional commit messages
+- format code with black formatter in pipenv dependencies after code changes
+- run tests with pipenv run, and install dependencies using pipenv
+- keep things simple

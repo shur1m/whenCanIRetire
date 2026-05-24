@@ -11,6 +11,7 @@ Covers:
 All expected values are computed analytically from the formulas in the source
 so that any refactor that changes the math will be detected.
 """
+
 import math
 import pytest
 
@@ -26,10 +27,10 @@ from utils.globals import GlobalParameters
 from utils.parameters import Person, Account
 from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State
 
-
 # ---------------------------------------------------------------------------
 # Shared setup helper
 # ---------------------------------------------------------------------------
+
 
 def _make_person_and_account(
     current_age=30,
@@ -76,6 +77,7 @@ def _make_person_and_account(
 # _adjust_for_inflation
 # ===========================================================================
 
+
 class TestAdjustForInflation:
     """
     Formula: todays_dollars * (1 + inflation_rate)^(months/12)
@@ -95,13 +97,13 @@ class TestAdjustForInflation:
         """After 12 months (1 year) at 3%, value = 1000 * 1.03^1 = 1030."""
         result = _adjust_for_inflation(1_000.0, months=12)
         expected = 1_000.0 * 1.03
-        assert math.isclose(result, expected, rel_tol=1e-6), (
-            f"Expected {expected:.4f}, got {result:.4f}"
-        )
+        assert math.isclose(
+            result, expected, rel_tol=1e-6
+        ), f"Expected {expected:.4f}, got {result:.4f}"
 
     def test_twenty_four_months_two_years(self):
         result = _adjust_for_inflation(1_000.0, months=24)
-        expected = 1_000.0 * (1.03 ** 2)
+        expected = 1_000.0 * (1.03**2)
         assert math.isclose(result, expected, rel_tol=1e-6)
 
     def test_six_months_half_year(self):
@@ -119,14 +121,15 @@ class TestAdjustForInflation:
     def test_monotonically_increases_with_months(self):
         results = [_adjust_for_inflation(1_000.0, m) for m in range(0, 121, 12)]
         for i in range(1, len(results)):
-            assert results[i] > results[i - 1], (
-                f"Inflation adjustment should grow monotonically; failed at index {i}"
-            )
+            assert (
+                results[i] > results[i - 1]
+            ), f"Inflation adjustment should grow monotonically; failed at index {i}"
 
 
 # ===========================================================================
 # _calculate_pre_tax_income
 # ===========================================================================
+
 
 class TestCalculatePreTaxIncome:
     """
@@ -162,9 +165,9 @@ class TestCalculatePreTaxIncome:
     def test_pre_tax_is_always_greater_than_post_tax(self):
         for post_tax in [30_000, 50_000, 80_000, 100_000]:
             pre_tax = _calculate_pre_tax_income(post_tax)
-            assert pre_tax > post_tax, (
-                f"pre_tax ({pre_tax}) should exceed post_tax ({post_tax})"
-            )
+            assert (
+                pre_tax > post_tax
+            ), f"pre_tax ({pre_tax}) should exceed post_tax ({post_tax})"
 
     def test_monotonic(self):
         """Higher post-tax income → higher pre-tax income."""
@@ -175,6 +178,7 @@ class TestCalculatePreTaxIncome:
 # ===========================================================================
 # _simulate_accumulation – monthly compounding, monthly contributions
 # ===========================================================================
+
 
 class TestSimulateAccumulationMonthly:
     """
@@ -226,9 +230,9 @@ class TestSimulateAccumulationMonthly:
             compound_type=MonthlyCompoundType.ROOT,
         )
         assert len(values) == 1
-        assert math.isclose(values[0], 12_000.0, abs_tol=0.01), (
-            f"Expected 12000.00, got {values[0]:.2f}"
-        )
+        assert math.isclose(
+            values[0], 12_000.0, abs_tol=0.01
+        ), f"Expected 12000.00, got {values[0]:.2f}"
 
     def test_initial_savings_are_carried_forward(self):
         labels, values = self._run(
@@ -267,9 +271,9 @@ class TestSimulateAccumulationMonthly:
             compound_frequency=Frequency.MONTHLY,
             compound_type=MonthlyCompoundType.ROOT,
         )
-        assert math.isclose(values[0], expected_after_1_year, rel_tol=1e-6), (
-            f"Expected {expected_after_1_year:.4f}, got {values[0]:.4f}"
-        )
+        assert math.isclose(
+            values[0], expected_after_1_year, rel_tol=1e-6
+        ), f"Expected {expected_after_1_year:.4f}, got {values[0]:.4f}"
 
     def test_monthly_divide_compound_one_year(self):
         """
@@ -358,6 +362,7 @@ class TestSimulateAccumulationMonthly:
 # _simulate_retirement
 # ===========================================================================
 
+
 class TestSimulateRetirement:
     """
     The retirement loop:
@@ -366,11 +371,17 @@ class TestSimulateRetirement:
       3. Stops when balance < monthly_expense OR age >= lifespan.
     """
 
-    def _run_retirement(self, initial_savings, annual_expense, lifespan=50,
-                        retirement_age=40, current_age=30,
-                        annual_retirement_return=0.0,
-                        account_type=AccountType.GENERIC,
-                        compound_frequency=Frequency.MONTHLY):
+    def _run_retirement(
+        self,
+        initial_savings,
+        annual_expense,
+        lifespan=50,
+        retirement_age=40,
+        current_age=30,
+        annual_retirement_return=0.0,
+        account_type=AccountType.GENERIC,
+        compound_frequency=Frequency.MONTHLY,
+    ):
         user = Person(
             current_age=current_age,
             retirement_age=retirement_age,
@@ -412,12 +423,12 @@ class TestSimulateRetirement:
             annual_retirement_return=0.0,
             account_type=AccountType.ROTH,
         )
-        assert labels == [], (
-            "When savings deplete within < 12 months, no annual label is recorded"
-        )
-        assert values == [], (
-            "When savings deplete within < 12 months, no value is recorded"
-        )
+        assert (
+            labels == []
+        ), "When savings deplete within < 12 months, no annual label is recorded"
+        assert (
+            values == []
+        ), "When savings deplete within < 12 months, no value is recorded"
 
     def test_runs_out_after_multiple_years_appends_zero(self):
         """
@@ -440,9 +451,9 @@ class TestSimulateRetirement:
             account_type=AccountType.ROTH,
         )
         assert len(labels) > 0, "Expected at least one annual data point"
-        assert values[-1] == 0, (
-            f"Expected trailing 0 when savings go negative mid-cycle, got {values[-1]:.2f}"
-        )
+        assert (
+            values[-1] == 0
+        ), f"Expected trailing 0 when savings go negative mid-cycle, got {values[-1]:.2f}"
         assert labels[-1] < 80, "Account should deplete well before lifespan=80"
 
     def test_large_savings_lasts_to_lifespan(self):
@@ -493,9 +504,9 @@ class TestSimulateRetirement:
             account_type=AccountType.ROTH,
         )
         # Generic depletes faster (due to pre-tax grossing up)
-        assert len(labels_generic) <= len(labels_roth), (
-            "Generic account should deplete at least as fast as Roth"
-        )
+        assert len(labels_generic) <= len(
+            labels_roth
+        ), "Generic account should deplete at least as fast as Roth"
 
     def test_zero_return_no_inflation_simple_depletion(self):
         """
@@ -518,7 +529,7 @@ class TestSimulateRetirement:
             account = Account(
                 owner=user,
                 initial_savings=120_000,
-                annual_retirement_post_tax_expense=12_000,   # $1,000/month
+                annual_retirement_post_tax_expense=12_000,  # $1,000/month
                 annual_retirement_return=0.0,
                 compound_frequency=Frequency.MONTHLY,
                 account_type=AccountType.ROTH,  # no tax grossing
@@ -527,9 +538,9 @@ class TestSimulateRetirement:
             values = []
             _simulate_retirement(account, 120_000, labels, values)
             # After 1 year (12 months) the balance should be 120,000 - 12,000 = 108,000
-            assert math.isclose(values[0], 108_000.0, abs_tol=0.01), (
-                f"Expected 108000.00 after year 1, got {values[0]:.2f}"
-            )
+            assert math.isclose(
+                values[0], 108_000.0, abs_tol=0.01
+            ), f"Expected 108000.00 after year 1, got {values[0]:.2f}"
         finally:
             # Restore a sensible inflation rate for subsequent tests
             GlobalParameters.inflation_rate = 0.03
@@ -538,6 +549,7 @@ class TestSimulateRetirement:
 # ===========================================================================
 # simulate_account – end-to-end
 # ===========================================================================
+
 
 class TestSimulateAccount:
     """Full pipeline: accumulation + retirement."""
@@ -574,9 +586,9 @@ class TestSimulateAccount:
         # The max should be somewhere around retirement, not at the very end
         max_value = max(values)
         last_value = values[-1]
-        assert max_value > last_value, (
-            "Portfolio value should peak during/near retirement, not at the end"
-        )
+        assert (
+            max_value > last_value
+        ), "Portfolio value should peak during/near retirement, not at the end"
 
     def test_lengths_match(self):
         user, account = _make_person_and_account()
@@ -611,7 +623,7 @@ class TestSimulateAccount:
         user, account = _make_person_and_account(
             current_age=30,
             retirement_age=40,
-            lifespan=40,    # lifespan == retirement_age → no retirement phase
+            lifespan=40,  # lifespan == retirement_age → no retirement phase
             initial_savings=0,
             annual_investment_return=0.07,
             annual_investment_increase=0.0,
@@ -624,6 +636,6 @@ class TestSimulateAccount:
         )
         labels, values = simulate_account(account)
         # The last value from the accumulation phase (index 9 = age 39)
-        assert math.isclose(values[9], expected_at_retirement, rel_tol=1e-5), (
-            f"Expected {expected_at_retirement:.2f} at retirement, got {values[9]:.2f}"
-        )
+        assert math.isclose(
+            values[9], expected_at_retirement, rel_tol=1e-5
+        ), f"Expected {expected_at_retirement:.2f} at retirement, got {values[9]:.2f}"

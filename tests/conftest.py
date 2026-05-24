@@ -5,15 +5,16 @@ GlobalParameters is a class-level (global) singleton that must be configured
 before any tax or retirement calculations run. Fixtures here handle that setup
 so individual test modules don't have to.
 """
+
 import pytest
 from utils.globals import GlobalParameters
 from utils.parameters import Person, Account
 from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def configure_2024(user: Person) -> None:
     """Load 2024 tax tables into GlobalParameters for the given user."""
@@ -23,6 +24,7 @@ def configure_2024(user: Person) -> None:
 # ---------------------------------------------------------------------------
 # Basic person fixtures (no state tax)
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def person_tx_115k() -> Person:
