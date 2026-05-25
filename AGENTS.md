@@ -5,6 +5,7 @@
 - use conventional commit messages, and keep them concise
 - create commits based off of complete units of work, and split commits for different features/bugs/etc
 - before committing, run tests and ensure there are no type checking errors
+- format code with black formatter in pipenv dependencies after code changes
 - when running tests, use pipenv run pytest
 - when installing dependencies, use pipenv
 - keep things simple

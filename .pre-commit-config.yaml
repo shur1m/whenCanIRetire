@@ -1,5 +1,14 @@
 repos:
-  - repo: https://github.com
-    rev: 26.5.1  # Use the latest version
+  - repo: https://github.com/psf/black
+    rev: 26.5.1
     hooks:
       - id: black
+
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.3.3
+    hooks:
+      - id: autoflake
+        args:
+        - --remove-all-unused-imports
+        - --recursive
+        - --in-place

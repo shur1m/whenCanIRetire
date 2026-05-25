@@ -15,7 +15,6 @@ so that any refactor that changes the math will be detected.
 import math
 import json
 from decimal import Decimal
-import pytest
 
 from calculate.retirement import (
     simulate_account,
@@ -23,7 +22,6 @@ from calculate.retirement import (
     _simulate_accumulation,
     _simulate_retirement,
 )
-from calculate.aggregate import calculate_annual_income_tax
 from utils.globals import GlobalParameters
 from utils.parameters import Person, Account
 from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State

@@ -25,7 +25,6 @@ tax tables in config/tax.json.
 import math
 import json
 from decimal import Decimal
-import pytest
 
 from calculate.federal_tax import (
     calculate_annual_federal_income_tax,

@@ -21,6 +21,8 @@ matplotlib = "==3.10.9"
 black = "*"
 pytest = "*"
 pyright = "*"
+pre-commit = "*"
+autoflake = "*"
 
 [requires]
 python_version = "3.12"
