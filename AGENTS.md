@@ -1,4 +1,6 @@
-- never make changes to main directly, create a branch before making changes, and create a pull request when changes are finalized
+- never make changes to main directly
+  - pull main and create a branch before making changes
+  - create a pull request when changes are finalized
 - use conventional commit messages, and keep them concise
 - create commits based off of complete units of work
 - before committing, run tests and ensure there are no type checking errors

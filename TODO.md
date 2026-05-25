@@ -5,7 +5,9 @@
 - Add toggle for post tax income, so that tax is not calculated
 - Add toggle for company matches that does not subtract from pay, also add another text for company match total. Company match should not show up in pie.
 - Show how much money withdrawn from each account during retirement phase
-- Calculate total money spent (post tax income during accumulation + post tax withdrawal during retirement)
+- Calculate total money spent and optimal withdrawal(post tax income during accumulation + post tax withdrawal during retirement)
+  - optimal account drawndown/withdrawal order https://www.fidelity.com/viewpoints/retirement/tax-savvy-withdrawals
+  - 401k pretax rmd requires retirees to withdraw their account before a certain age
 - Automatically calculate retirement expense to end at life expectancy
 - Allow user to set timespan during the accumulation phase where they are contributing (useful for HSA where only young people can contribute because they are healthy)
 - Allow user to set timespan during retirement phase where they are withdrawing
