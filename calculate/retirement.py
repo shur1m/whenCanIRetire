@@ -168,6 +168,9 @@ def _simulate_retirement(
             graph_labels.append(account.owner.retirement_age + retirement_months // 12)
             graph_savings_values.append(current_savings)
 
-    if current_savings < Decimal("0"):
-        graph_labels.append(account.owner.retirement_age + retirement_months // 12 + 1)
-        graph_savings_values.append(Decimal("0"))
+    if account.owner.retirement_age + retirement_months // 12 < account.owner.lifespan:
+        if graph_labels:
+            next_year = graph_labels[-1] + 1
+            if next_year <= account.owner.lifespan:
+                graph_labels.append(next_year)
+                graph_savings_values.append(Decimal("0"))

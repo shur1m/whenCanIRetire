@@ -476,6 +476,27 @@ class TestSimulateRetirement:
         ), f"Expected trailing 0 when savings go negative mid-cycle, got {values[-1]:.2f}"
         assert labels[-1] < 80, "Account should deplete well before lifespan=80"
 
+    def test_depletion_visualization_quirk_fix(self):
+        """
+        We verify that even if savings do not go negative mid-cycle (e.g. they
+        terminate because they drop below the next monthly withdrawal limit),
+        a final $0 data point is appended to the graph if it is before lifespan.
+        """
+        user, account, config = _make_person_and_account(
+            current_age=30,
+            retirement_age=40,
+            lifespan=60,
+            initial_savings=10_000,
+            regular_investment_dollar=0,  # no additional savings
+            annual_retirement_post_tax_expense=20_000,  # high expense to deplete quickly
+            annual_retirement_return=0.0,
+            account_type=AccountType.ROTH,
+        )
+        labels, values = simulate_account(account, config)
+        # Should have run out of money well before age 60
+        assert labels[-1] < 60
+        assert values[-1] == Decimal("0")
+
     def test_large_savings_lasts_to_lifespan(self):
         """Large savings relative to expense should not run out before lifespan."""
         labels, values = self._run_retirement(
