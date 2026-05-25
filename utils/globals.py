@@ -40,8 +40,12 @@ class GlobalParameters:
     def get_state_tax_brackets(
         self, state: State, filing: Filing
     ) -> list[tuple[Decimal, Decimal]]:
-        if state not in self.yearly_tax.StateTax:
+        if state == State.TEXAS:
             return []
+        if state not in self.yearly_tax.StateTax:
+            raise ValueError(
+                f"State tax brackets configuration is missing for state '{state.value}' in year {self.year}"
+            )
         state_schema = self.yearly_tax.StateTax[state]
         bracket_schema = (
             state_schema.Individual
@@ -54,8 +58,12 @@ class GlobalParameters:
         ]
 
     def get_state_tax_deduction(self, state: State, filing: Filing) -> Decimal:
-        if state not in self.yearly_tax.StateTax:
+        if state == State.TEXAS:
             return Decimal("0")
+        if state not in self.yearly_tax.StateTax:
+            raise ValueError(
+                f"State tax deduction configuration is missing for state '{state.value}' in year {self.year}"
+            )
         state_schema = self.yearly_tax.StateTax[state]
         return (
             state_schema.StandardTaxDeduction

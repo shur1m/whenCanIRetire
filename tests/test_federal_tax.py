@@ -339,12 +339,11 @@ class TestStateIncomeTax:
 
     def test_california_includes_sdi(self, person_ca_115k, config_2024):
         """
-        California SDI = 1.1% of (pre_tax_income - state std deduction).
-        State std deduction 2024: $5,363.
-        SDI = 0.011 * (115,000 - 5,363) = 0.011 * 109,637 = 1,206.01
+        California SDI = 1.1% of gross pre_tax_income.
+        SDI = 0.011 * 115,000 = 1,265.00
         The total state tax must be at least this much.
         """
-        sdi_floor = 0.011 * (115_000 - 5_363)
+        sdi_floor = 0.011 * 115_000
         result = calculate_annual_state_income_tax(person_ca_115k, config_2024)
         assert (
             result >= sdi_floor
@@ -362,14 +361,14 @@ class TestStateIncomeTax:
           6%   on (54,081-38,959)      = 15,122 * 0.06  = 907.32
           8%   on (68,350-54,081)      = 14,269 * 0.08  = 1,141.52
           9.3% on (109,637-68,350)     = 41,287 * 0.093 = 3,839.69
-          Bracket total = 6,849.09
-        SDI = 0.011 * (115,000 - 5,363) = 0.011 * 109,637 = 1,206.01
-        Total CA state tax ≈ 8,055.10
+          Bracket total = 6,848.88
+        SDI = 0.011 * 115,000 = 1,265.00
+        Total CA state tax = 6,848.88 + 1,265.00 ≈ 8,113.88
         """
         result = calculate_annual_state_income_tax(person_ca_115k, config_2024)
         assert math.isclose(
-            result, 8_055.10, abs_tol=1.0
-        ), f"Expected CA state tax ~8055.10, got {result:.2f}"
+            result, 8_113.88, abs_tol=1.0
+        ), f"Expected CA state tax ~8113.88, got {result:.2f}"
 
 
 # ===========================================================================
@@ -417,3 +416,40 @@ class TestTotalIncomeTax:
         assert calculate_annual_income_tax(
             user_high, config_high
         ) > calculate_annual_income_tax(user_low, config_low)
+
+
+def test_calculate_retirement_deductions_excess_preserves_additional_deductions():
+    from calculate.federal_tax import (
+        calculate_retirement_deductions_excess,
+        calculate_annual_income_tax,
+    )
+
+    user = Person(
+        pre_tax_income=100_000,
+        additional_income_tax_deductions=5_000,
+        state_of_residence=State.TEXAS,
+        filing=Filing.INDIVIDUAL,
+    )
+    user.create_account(
+        "401k",
+        regular_investment_dollar=10_000,
+        regular_investment_frequency=Frequency.ANNUALLY,
+        account_type=AccountType.TRADITIONAL,
+    )
+    config = _setup(user)
+
+    tax_with_all = calculate_annual_income_tax(user, config)
+    excess_savings = calculate_retirement_deductions_excess(user, config, tax_with_all)
+
+    only_base_user = Person(
+        pre_tax_income=100_000,
+        additional_income_tax_deductions=5_000,
+        state_of_residence=State.TEXAS,
+        filing=Filing.INDIVIDUAL,
+    )
+    tax_with_only_base = calculate_annual_income_tax(only_base_user, config)
+    expected_savings = tax_with_only_base - tax_with_all
+
+    assert math.isclose(
+        excess_savings, expected_savings, abs_tol=0.01
+    ), f"Expected excess savings to be {expected_savings}, but got {excess_savings}."

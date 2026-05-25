@@ -13,7 +13,7 @@ class MonthlyCompoundType(Enum):
 
 class AccountType(str, Enum):
     GENERIC = "generic"
-    PRETAX = TRADITIONAL = "traditional"
+    TRADITIONAL = "traditional"
     ROTH = "roth"
     HSA = "hsa"
 

@@ -96,7 +96,10 @@
                     ]
                 },
                 "StandardTaxDeduction": 5363,
-                "JointTaxDeduction": 10726
+                "JointTaxDeduction": 10726,
+                "SDITaxPercent": 0.011,
+                "MHSTaxPercent": 0.01,
+                "MHSTaxThreshold": 1000000
             }
         },
         "FicaTax": {
