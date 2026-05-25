@@ -14,6 +14,7 @@ class AccountSchema(BaseModel):
     account_type: AccountType = AccountType.GENERIC
     regular_investment_frequency: Frequency = Frequency.MONTHLY
     initial_savings: Decimal = Decimal("0")
+    cost_basis: Optional[Decimal] = None
     regular_investment_dollar: Decimal = Decimal("0")
     annual_investment_increase: Decimal = Decimal("0")
     annual_investment_return: Decimal = Decimal("0.07")
@@ -72,7 +73,7 @@ class FederalTaxSchema(BaseModel):
     Joint: TaxBracketSchema
     StandardTaxDeduction: Decimal
     JointTaxDeduction: Decimal
-    CapitalGainsTax: Optional[FederalCapitalGainsTaxSchema] = None
+    CapitalGainsTax: FederalCapitalGainsTaxSchema
 
 
 class StateTaxSchema(BaseModel):

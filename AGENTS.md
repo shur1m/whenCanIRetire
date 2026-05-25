@@ -1,8 +1,9 @@
 - never make changes to main directly
   - pull main and create a branch before making changes
   - create a pull request when changes are finalized
+- provide reliable sources (internet links) for tax calculations for any new functions created
 - use conventional commit messages, and keep them concise
-- create commits based off of complete units of work
+- create commits based off of complete units of work, and split commits for different features/bugs/etc
 - before committing, run tests and ensure there are no type checking errors
 - format code with black formatter in pipenv dependencies after code changes
 - when running tests, use pipenv run pytest

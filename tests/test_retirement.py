@@ -20,7 +20,6 @@ import pytest
 from calculate.retirement import (
     simulate_account,
     _adjust_for_inflation,
-    _calculate_pre_tax_income,
     _simulate_accumulation,
     _simulate_retirement,
 )
@@ -63,6 +62,7 @@ def _make_person_and_account(
     compound_type=MonthlyCompoundType.ROOT,
     account_type=AccountType.GENERIC,
     state_of_residence=State.TEXAS,
+    cost_basis=None,
 ) -> tuple[Person, Account, GlobalParameters]:
     user = Person(
         current_age=current_age,
@@ -75,6 +75,7 @@ def _make_person_and_account(
     account = Account(
         owner=user,
         initial_savings=initial_savings,
+        cost_basis=cost_basis,
         regular_investment_dollar=regular_investment_dollar,
         regular_investment_frequency=regular_investment_frequency,
         annual_investment_increase=annual_investment_increase,
@@ -140,59 +141,6 @@ class TestAdjustForInflation:
             assert (
                 results[i] > results[i - 1]
             ), f"Inflation adjustment should grow monotonically; failed at index {i}"
-
-
-# ===========================================================================
-# _calculate_pre_tax_income
-# ===========================================================================
-
-
-class TestCalculatePreTaxIncome:
-    """
-    _calculate_pre_tax_income(post_tax) uses binary search to find pre_tax such
-    that pre_tax - total_tax(pre_tax) ≈ post_tax.  We verify this invariant
-    rather than hard-coding the result (which depends on the tax tables loaded).
-    """
-
-    def setup_method(self):
-        self.user = Person(pre_tax_income=100_000, state_of_residence=State.TEXAS)
-        self.config = _make_config(2024)
-
-    def _post_tax(self, pre_tax: Decimal) -> Decimal:
-        return pre_tax - calculate_annual_income_tax(
-            Person(pre_tax_income=pre_tax, state_of_residence=State.TEXAS),
-            self.config,
-        )
-
-    def test_round_trip_70k_post_tax(self):
-        post_tax_target = 70_000
-        pre_tax = _calculate_pre_tax_income(post_tax_target, self.user, self.config)
-        recovered_post_tax = self._post_tax(pre_tax)
-        assert math.isclose(recovered_post_tax, post_tax_target, abs_tol=0.02), (
-            f"Round-trip failed: post_tax({pre_tax:.2f}) = {recovered_post_tax:.2f}, "
-            f"expected {post_tax_target}"
-        )
-
-    def test_round_trip_50k_post_tax(self):
-        post_tax_target = 50_000
-        pre_tax = _calculate_pre_tax_income(post_tax_target, self.user, self.config)
-        recovered_post_tax = self._post_tax(pre_tax)
-        assert math.isclose(recovered_post_tax, post_tax_target, abs_tol=0.02)
-
-    def test_pre_tax_is_always_greater_than_post_tax(self):
-        for post_tax in [30_000, 50_000, 80_000, 100_000]:
-            pre_tax = _calculate_pre_tax_income(post_tax, self.user, self.config)
-            assert (
-                pre_tax > post_tax
-            ), f"pre_tax ({pre_tax}) should exceed post_tax ({post_tax})"
-
-    def test_monotonic(self):
-        """Higher post-tax income → higher pre-tax income."""
-        results = [
-            _calculate_pre_tax_income(pt, self.user, self.config)
-            for pt in [40_000, 60_000, 80_000]
-        ]
-        assert results == sorted(results), "pre_tax should be monotonically increasing"
 
 
 # ===========================================================================
@@ -468,27 +416,6 @@ class TestSimulateRetirement:
         ), f"Expected trailing 0 when savings go negative mid-cycle, got {values[-1]:.2f}"
         assert labels[-1] < 80, "Account should deplete well before lifespan=80"
 
-    def test_depletion_visualization_quirk_fix(self):
-        """
-        We verify that even if savings do not go negative mid-cycle (e.g. they
-        terminate because they drop below the next monthly withdrawal limit),
-        a final $0 data point is appended to the graph if it is before lifespan.
-        """
-        user, account, config = _make_person_and_account(
-            current_age=30,
-            retirement_age=40,
-            lifespan=60,
-            initial_savings=10_000,
-            regular_investment_dollar=0,  # no additional savings
-            annual_retirement_post_tax_expense=20_000,  # high expense to deplete quickly
-            annual_retirement_return=0.0,
-            account_type=AccountType.ROTH,
-        )
-        labels, values = simulate_account(account, config)
-        # Should have run out of money well before age 60
-        assert labels[-1] < 60
-        assert values[-1] == Decimal("0")
-
     def test_large_savings_lasts_to_lifespan(self):
         """Large savings relative to expense should not run out before lifespan."""
         labels, values = self._run_retirement(
@@ -672,6 +599,7 @@ class TestSimulateAccount:
             retirement_age=33,
             lifespan=33,
             initial_savings=5_000,
+            cost_basis=5_000,
             regular_investment_dollar=1_000,
             regular_investment_frequency=Frequency.MONTHLY,
             annual_investment_increase=0.0,
@@ -715,7 +643,7 @@ class TestSimulateAccount:
 
         # Texas
         user_tx = Person(state_of_residence=State.TEXAS)
-        from calculate.state_tax import get_state_capital_gains_calculator
+        from calculate.state_capital_gains import get_state_capital_gains_calculator
 
         calculator_tx = get_state_capital_gains_calculator(State.TEXAS)
         tx_tax = calculator_tx.calculate_capital_gains_tax(
@@ -743,7 +671,7 @@ class TestSimulateAccount:
 
         # Using a dummy state name to trigger fallback
         unimplemented_state = "New York"
-        from calculate.state_tax import get_state_capital_gains_calculator
+        from calculate.state_capital_gains import get_state_capital_gains_calculator
 
         with caplog.at_level(logging.WARNING):
             get_state_capital_gains_calculator(unimplemented_state)  # type: ignore

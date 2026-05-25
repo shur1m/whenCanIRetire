@@ -18,6 +18,7 @@ class Account:
         self,
         owner: Person,
         initial_savings: Union[Decimal, float, int] = 0,
+        cost_basis: Optional[Union[Decimal, float, int]] = None,
         regular_investment_dollar: Union[Decimal, float, int] = 1666,
         regular_investment_frequency: Frequency = Frequency.MONTHLY,
         annual_investment_increase: Union[Decimal, float, int] = 0.0,
@@ -31,7 +32,10 @@ class Account:
 
         self.owner: Person = owner
         self.initial_savings: Decimal = to_decimal(initial_savings)
-        self.cost_basis: Decimal = self.initial_savings
+        # TODO: figure what the cost_basis should be if it is not provided
+        self.cost_basis: Decimal = (
+            to_decimal(cost_basis) if cost_basis is not None else Decimal("0")
+        )
         self.regular_investment_dollar: Decimal = to_decimal(regular_investment_dollar)
         self.regular_investment_frequency: Frequency = regular_investment_frequency
         self.annual_investment_increase: Decimal = to_decimal(

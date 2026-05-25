@@ -41,7 +41,9 @@ class GlobalParameters:
         self, filing: Filing
     ) -> list[tuple[Decimal, Decimal]]:
         if self.yearly_tax.FederalTax.CapitalGainsTax is None:
-            return self.get_fed_tax_brackets(filing)
+            raise ValueError(
+                f"Federal Capital Gains Tax brackets configuration is missing in year {self.year}"
+            )
 
         bracket_schema = (
             self.yearly_tax.FederalTax.CapitalGainsTax.Individual

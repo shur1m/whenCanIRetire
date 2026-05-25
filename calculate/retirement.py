@@ -5,7 +5,7 @@ from calculate.federal_tax import (
     calculate_annual_federal_income_tax,
     calculate_annual_state_income_tax,
 )
-from calculate.state_tax import get_state_capital_gains_calculator
+from calculate.state_capital_gains import get_state_capital_gains_calculator
 from utils.parameters import Person, Account, to_decimal
 from utils.enums import Frequency, MonthlyCompoundType, AccountType, State
 from utils.globals import GlobalParameters
@@ -42,37 +42,6 @@ def _adjust_for_inflation(
     inflation_multiplier = Decimal("1") + inflation_rate_dec
     inflation_per_month = inflation_multiplier ** (Decimal("1") / Decimal("12"))
     return todays_dollars_dec * (inflation_per_month**months)
-
-
-def _calculate_pre_tax_income(
-    post_tax_income: Union[Decimal, float, int],
-    user: Person,
-    config: GlobalParameters,
-) -> Decimal:
-    # binary search
-    post_tax_income_dec = to_decimal(post_tax_income)
-    left = post_tax_income_dec
-    right = post_tax_income_dec * Decimal("5")
-    pre_tax_income = right
-
-    # stop once error is smaller than cent
-    while abs(right - left) > Decimal("0.01"):
-        pre_tax_income = left + (right - left) / Decimal("2")
-        # create dummy person using the actual user's state and filing status
-        dummy_person = Person(
-            pre_tax_income=pre_tax_income,
-            state_of_residence=user.state_of_residence,
-            filing=user.filing,
-        )
-        if (
-            pre_tax_income - calculate_annual_income_tax(dummy_person, config)
-            > post_tax_income_dec
-        ):
-            right = pre_tax_income
-        else:
-            left = pre_tax_income
-
-    return pre_tax_income.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def _simulate_accumulation(
@@ -126,6 +95,30 @@ def _simulate_accumulation(
     return current_savings
 
 
+def _calculate_progressive_tax(
+    taxable_income: Decimal, brackets: list[tuple[Decimal, Decimal]]
+) -> Decimal:
+    """Helper to calculate tax on taxable income using progressive tax brackets.
+
+    Each bracket in the list is a tuple of (tax_rate, floor_value).
+    """
+    taxes_owed = Decimal("0")
+    for i in range(len(brackets)):
+        tax_percent, floor_value = brackets[i]
+        ceiling_value = (
+            brackets[i + 1][1] - Decimal("1")
+            if i + 1 < len(brackets)
+            else Decimal("Infinity")
+        )
+        if taxable_income > ceiling_value:
+            taxes_owed += (ceiling_value - floor_value) * tax_percent
+        elif taxable_income <= floor_value:
+            break
+        else:
+            taxes_owed += (taxable_income - floor_value) * tax_percent
+    return taxes_owed
+
+
 def calculate_retirement_withdrawal_tax(
     amount: Decimal,
     account: Account,
@@ -153,36 +146,26 @@ def calculate_retirement_withdrawal_tax(
         filing=user.filing,
     )
 
-    # 1. Federal tax
+    # 1. Federal tax calculation
     if is_capital_gains:
+        # Standard deduction is applied to the withdrawal amount to find taxable capital gains
         deduction = config.get_fed_tax_deduction(user.filing)
         taxable_gains = max(Decimal("0"), amount - deduction)
         brackets = config.get_fed_capital_gains_brackets(user.filing)
-
-        fed_tax = Decimal("0")
-        for i in range(len(brackets)):
-            tax_percent, floor_value = brackets[i]
-            ceiling_value = (
-                brackets[i + 1][1] - Decimal("1")
-                if i + 1 < len(brackets)
-                else Decimal("Infinity")
-            )
-            if taxable_gains > ceiling_value:
-                fed_tax += (ceiling_value - floor_value) * tax_percent
-            elif taxable_gains <= floor_value:
-                break
-            else:
-                fed_tax += (taxable_gains - floor_value) * tax_percent
+        fed_tax = _calculate_progressive_tax(taxable_gains, brackets)
     else:
+        # Ordinary federal income tax (FICA is excluded as it only applies to earned wages)
         fed_tax = calculate_annual_federal_income_tax(dummy_person, config)
 
-    # 2. State tax
+    # 2. State tax calculation
     if is_capital_gains:
+        # State capital gains tax using the registered calculator for the state
         calculator = get_state_capital_gains_calculator(user.state_of_residence)
         state_tax = calculator.calculate_capital_gains_tax(amount, dummy_person, config)
     else:
+        # Ordinary state income tax
         state_tax = calculate_annual_state_income_tax(dummy_person, config)
-        # Exclude California SDI from retirement withdrawals
+        # Exclude California SDI from retirement withdrawals (SDI only applies to wages)
         if user.state_of_residence == State.CALIFORNIA:
             state_schema = config.yearly_tax.StateTax.get(State.CALIFORNIA)
             sdi_percent = (
@@ -201,23 +184,35 @@ def _calculate_retirement_pre_tax_income(
     current_savings: Decimal,
     config: GlobalParameters,
 ) -> Decimal:
-    """Binary search to find the pre-tax monthly withdrawal needed to net a post-tax monthly amount."""
+    """Calculates the pre-tax monthly withdrawal required to meet a post-tax target.
+
+    Since tax brackets are structured on an annual basis, we project the monthly
+    withdrawal to an annual rate, compute the annual tax, and divide by 12.
+    We use binary search to solve for:
+        pre_tax_income - tax_monthly(pre_tax_income) == post_tax_income
+    """
+    # Roth and HSA accounts are 100% tax-free, so pre-tax equals post-tax
     if account.account_type not in (AccountType.GENERIC, AccountType.TRADITIONAL):
         return post_tax_income
 
+    # Initialize binary search range
     left = post_tax_income
-    right = post_tax_income * Decimal("5")
+    right = post_tax_income * Decimal("5")  # Safe upper bound
     pre_tax_income = right
 
+    # Narrow down the pre-tax income until the precision is within a cent
     while abs(right - left) > Decimal("0.01"):
         pre_tax_income = left + (right - left) / Decimal("2")
-        pre_tax_annual = pre_tax_income * 12
+        pre_tax_annual = pre_tax_income * Decimal("12")
 
         if account.account_type == AccountType.TRADITIONAL:
+            # Traditional accounts are taxed on 100% of the withdrawal amount as ordinary income
             tax_annual = calculate_retirement_withdrawal_tax(
                 pre_tax_annual, account, config, is_capital_gains=False
             )
-        else:  # GENERIC
+        else:
+            # For GENERIC (Brokerage) accounts, tax is only applied to the capital gains portion.
+            # The gain ratio is determined based on the current cost basis.
             gain_ratio = Decimal("0")
             if current_savings > 0:
                 gain_ratio = max(
@@ -292,6 +287,12 @@ def _simulate_retirement(
                 (current_savings + withdrawal_pre_tax - account.cost_basis)
                 / (current_savings + withdrawal_pre_tax),
             )
+            # When withdrawing, the cost basis is reduced by the cost basis of the assets sold.
+            # Under the Average Basis Method (IRS Publication 550), the cost basis per dollar withdrawn is
+            # cost_basis / current_savings. Therefore, the cost basis is reduced by:
+            # cost_basis_withdrawn = withdrawal_pre_tax * (cost_basis / current_savings)
+            # which is mathematically equivalent to: withdrawal_pre_tax * (1 - gain_ratio).
+            # Source: IRS Publication 550 (Investment Income and Expenses): https://www.irs.gov/publications/p550
             cost_basis_withdrawn = withdrawal_pre_tax * (Decimal("1") - gain_ratio)
             account.cost_basis = max(
                 Decimal("0"), account.cost_basis - cost_basis_withdrawn
@@ -318,9 +319,8 @@ def _simulate_retirement(
             graph_labels.append(account.owner.retirement_age + retirement_months // 12)
             graph_savings_values.append(current_savings)
 
-    if account.owner.retirement_age + retirement_months // 12 < account.owner.lifespan:
-        if graph_labels:
-            next_year = graph_labels[-1] + 1
-            if next_year <= account.owner.lifespan:
-                graph_labels.append(next_year)
-                graph_savings_values.append(Decimal("0"))
+    if current_savings == Decimal("0"):
+        last_year = graph_labels[-1] if graph_labels else account.owner.retirement_age
+        next_year = last_year + 1
+        graph_labels.append(next_year)
+        graph_savings_values.append(Decimal("0"))

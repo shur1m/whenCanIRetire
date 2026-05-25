@@ -12,3 +12,4 @@
 - Allow user to set timespan during the accumulation phase where they are contributing (useful for HSA where only young people can contribute because they are healthy)
 - Allow user to set timespan during retirement phase where they are withdrawing
 - Nice to have: UI and dynamic changes, options for banker's rounding vs normal rounding to whole numbers
+- maybe fix the weird zipping we do instead of inputting tax brackets like it is used
