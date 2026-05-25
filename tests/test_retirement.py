@@ -496,6 +496,126 @@ class TestSimulateRetirement:
             values[0], 108_000.0, abs_tol=0.01
         ), f"Expected 108000.00 after year 1, got {values[0]:.2f}"
 
+    def test_cost_basis_reduction_in_net_loss(self):
+        """
+        Verify that cost basis is reduced proportionally under a net-loss scenario.
+        For a GENERIC account:
+        S = 100,000 (initial savings)
+        cost_basis = 150,000 (net loss)
+        Since it is a net loss, capital gains = 0, tax = 0, so withdrawal_pre_tax = withdrawal_post_tax.
+        With monthly expense = 12,000 (1,000/month):
+        In month 1:
+        withdrawal_pre_tax = 1000
+        total_savings_before_withdrawal = 100000
+        cost_basis_withdrawn = 150000 * (1000 / 100000) = 1500
+        Remaining cost basis should be 150000 - 1500 = 148500.
+        After 12 months, CB should be 150000 - 12 * 1500 = 132000.
+        """
+        user = Person(
+            current_age=30,
+            retirement_age=40,
+            lifespan=41,
+            pre_tax_income=115_000,
+            state_of_residence=State.TEXAS,
+        )
+        config = _make_config(2024)
+        config.inflation_rate = Decimal("0.0")
+        account = Account(
+            owner=user,
+            initial_savings=100_000,
+            annual_retirement_post_tax_expense=12_000,
+            annual_retirement_return=0.0,
+            compound_frequency=Frequency.MONTHLY,
+            account_type=AccountType.GENERIC,
+        )
+        account.cost_basis = Decimal("150000")
+        labels = []
+        values = []
+        _simulate_retirement(account, Decimal("100000"), labels, values, config)
+        assert math.isclose(
+            float(account.cost_basis), 132_000.0, abs_tol=1.0
+        ), f"Expected cost basis of 132000.00 after 12 months, got {account.cost_basis:.2f}"
+
+    def test_retirement_tax_inflation_adjustment(self):
+        """
+        Verify that tax calculations adjust for inflation so that bracket creep is avoided.
+        The pre-tax monthly income required for a target post-tax monthly income must scale
+        proportionally with the inflation factor.
+        """
+        from calculate.retirement import _calculate_retirement_pre_tax_income
+
+        user = Person(
+            current_age=30,
+            retirement_age=40,
+            lifespan=50,
+            pre_tax_income=115_000,
+            state_of_residence=State.TEXAS,
+        )
+        config = _make_config(2024)
+
+        # Test TRADITIONAL account (progressive ordinary income tax)
+        account_trad = Account(
+            owner=user,
+            initial_savings=1_000_000,
+            annual_retirement_post_tax_expense=60_000,
+            account_type=AccountType.TRADITIONAL,
+        )
+
+        # Calculate pre-tax income at inflation_factor = 1.0 (real dollars)
+        pre_tax_real = _calculate_retirement_pre_tax_income(
+            post_tax_income=Decimal("5000"),
+            account=account_trad,
+            current_savings=Decimal("1000000"),
+            config=config,
+            inflation_factor=Decimal("1.0"),
+        )
+
+        # Calculate pre-tax income at inflation_factor = 1.5 (inflated dollars)
+        pre_tax_inflated = _calculate_retirement_pre_tax_income(
+            post_tax_income=Decimal("5000") * Decimal("1.5"),
+            account=account_trad,
+            current_savings=Decimal("1000000"),
+            config=config,
+            inflation_factor=Decimal("1.5"),
+        )
+
+        expected_inflated = pre_tax_real * Decimal("1.5")
+        assert math.isclose(
+            float(pre_tax_inflated), float(expected_inflated), rel_tol=1e-5
+        ), f"Expected progressive pre-tax inflated to be {expected_inflated}, got {pre_tax_inflated}"
+
+        # Test GENERIC account (capital gains tax)
+        account_generic = Account(
+            owner=user,
+            initial_savings=1_000_000,
+            annual_retirement_post_tax_expense=60_000,
+            account_type=AccountType.GENERIC,
+        )
+        account_generic.cost_basis = Decimal("400000")  # gain ratio is 0.6
+
+        # Calculate pre-tax income at inflation_factor = 1.0 (real dollars)
+        pre_tax_real_gen = _calculate_retirement_pre_tax_income(
+            post_tax_income=Decimal("5000"),
+            account=account_generic,
+            current_savings=Decimal("1000000"),
+            config=config,
+            inflation_factor=Decimal("1.0"),
+        )
+
+        # Calculate pre-tax income at inflation_factor = 1.8 (inflated dollars)
+        pre_tax_inflated_gen = _calculate_retirement_pre_tax_income(
+            post_tax_income=Decimal("5000") * Decimal("1.8"),
+            account=account_generic,
+            current_savings=Decimal("1000000"),
+            config=config,
+            inflation_factor=Decimal("1.8"),
+        )
+
+        expected_inflated_gen = pre_tax_real_gen * Decimal("1.8")
+        assert math.isclose(
+            float(pre_tax_inflated_gen), float(expected_inflated_gen), rel_tol=1e-5
+        ), f"Expected capital gains pre-tax inflated to be {expected_inflated_gen}, got {pre_tax_inflated_gen}"
+
 
 # ===========================================================================
 # simulate_account – end-to-end
