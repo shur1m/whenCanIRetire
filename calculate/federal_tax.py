@@ -2,7 +2,7 @@ from decimal import Decimal
 import copy
 from utils.enums import Filing, State, Frequency
 from utils.parameters import Person
-from utils.globals import GlobalParameters
+from utils.globals import GlobalParameters, calculate_progressive_tax
 from calculate.state_tax import get_state_tax_calculator
 
 
@@ -35,24 +35,8 @@ def calculate_annual_state_income_tax(
 def _calculate_annual_income_tax(
     user: Person, tax_brackets: list[tuple[Decimal, Decimal]], tax_deduction: Decimal
 ) -> Decimal:
-    taxable_income = user.get_reduced_income() - tax_deduction
-
-    taxes_owed = Decimal("0")
-    for i in range(len(tax_brackets)):
-        tax_percent, floor_value = tax_brackets[i]
-        ceiling_value = (
-            tax_brackets[i + 1][1] - Decimal("1")
-            if i + 1 < len(tax_brackets)
-            else Decimal("Infinity")
-        )
-        if taxable_income > ceiling_value:
-            taxes_owed += (ceiling_value - floor_value) * tax_percent
-        elif taxable_income <= floor_value:
-            break
-        else:
-            taxes_owed += (taxable_income - floor_value) * tax_percent
-
-    return taxes_owed
+    taxable_income = max(Decimal("0"), user.get_reduced_income() - tax_deduction)
+    return calculate_progressive_tax(taxable_income, tax_brackets)
 
 
 def calculate_annual_social_security_tax(

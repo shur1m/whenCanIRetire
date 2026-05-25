@@ -1,7 +1,7 @@
 from decimal import Decimal
 from utils.enums import Filing, State
 from utils.parameters import Person
-from utils.globals import GlobalParameters
+from utils.globals import GlobalParameters, calculate_progressive_tax
 
 
 class StateTaxCalculator:
@@ -55,23 +55,9 @@ class CaliforniaTaxCalculator(StateTaxCalculator):
         additional_state_tax += SDI_tax + MHS_tax
 
         # Bracket-based state income tax
-        taxable_income = user.get_reduced_income() - tax_deduction
+        taxable_income = max(Decimal("0"), user.get_reduced_income() - tax_deduction)
         tax_brackets = config.get_state_tax_brackets(State.CALIFORNIA, user.filing)
-
-        taxes_owed = Decimal("0")
-        for i in range(len(tax_brackets)):
-            tax_percent, floor_value = tax_brackets[i]
-            ceiling_value = (
-                tax_brackets[i + 1][1] - Decimal("1")
-                if i + 1 < len(tax_brackets)
-                else Decimal("Infinity")
-            )
-            if taxable_income > ceiling_value:
-                taxes_owed += (ceiling_value - floor_value) * tax_percent
-            elif taxable_income <= floor_value:
-                break
-            else:
-                taxes_owed += (taxable_income - floor_value) * tax_percent
+        taxes_owed = calculate_progressive_tax(taxable_income, tax_brackets)
 
         return additional_state_tax + taxes_owed
 

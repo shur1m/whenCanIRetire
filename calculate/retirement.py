@@ -8,7 +8,7 @@ from calculate.federal_tax import (
 from calculate.state_capital_gains import get_state_capital_gains_calculator
 from utils.parameters import Person, Account, to_decimal
 from utils.enums import Frequency, MonthlyCompoundType, AccountType, State
-from utils.globals import GlobalParameters
+from utils.globals import GlobalParameters, calculate_progressive_tax
 
 
 def simulate_account(
@@ -95,30 +95,6 @@ def _simulate_accumulation(
     return current_savings
 
 
-def _calculate_progressive_tax(
-    taxable_income: Decimal, brackets: list[tuple[Decimal, Decimal]]
-) -> Decimal:
-    """Helper to calculate tax on taxable income using progressive tax brackets.
-
-    Each bracket in the list is a tuple of (tax_rate, floor_value).
-    """
-    taxes_owed = Decimal("0")
-    for i in range(len(brackets)):
-        tax_percent, floor_value = brackets[i]
-        ceiling_value = (
-            brackets[i + 1][1] - Decimal("1")
-            if i + 1 < len(brackets)
-            else Decimal("Infinity")
-        )
-        if taxable_income > ceiling_value:
-            taxes_owed += (ceiling_value - floor_value) * tax_percent
-        elif taxable_income <= floor_value:
-            break
-        else:
-            taxes_owed += (taxable_income - floor_value) * tax_percent
-    return taxes_owed
-
-
 def calculate_retirement_withdrawal_tax(
     amount: Decimal,
     account: Account,
@@ -152,7 +128,7 @@ def calculate_retirement_withdrawal_tax(
         deduction = config.get_fed_tax_deduction(user.filing)
         taxable_gains = max(Decimal("0"), amount - deduction)
         brackets = config.get_fed_capital_gains_brackets(user.filing)
-        fed_tax = _calculate_progressive_tax(taxable_gains, brackets)
+        fed_tax = calculate_progressive_tax(taxable_gains, brackets)
     else:
         # Ordinary federal income tax (FICA is excluded as it only applies to earned wages)
         fed_tax = calculate_annual_federal_income_tax(dummy_person, config)

@@ -6,6 +6,30 @@ from utils.schemas import YearlyTaxSchema
 logger = logging.getLogger(__name__)
 
 
+def calculate_progressive_tax(
+    taxable_income: Decimal, brackets: list[tuple[Decimal, Decimal]]
+) -> Decimal:
+    """Helper to calculate tax on taxable income using progressive tax brackets.
+
+    Each bracket in the list is a tuple of (tax_rate, floor_value).
+    """
+    taxes_owed = Decimal("0")
+    for i in range(len(brackets)):
+        tax_percent, floor_value = brackets[i]
+        ceiling_value = (
+            brackets[i + 1][1] - Decimal("1")
+            if i + 1 < len(brackets)
+            else Decimal("Infinity")
+        )
+        if taxable_income > ceiling_value:
+            taxes_owed += (ceiling_value - floor_value) * tax_percent
+        elif taxable_income <= floor_value:
+            break
+        else:
+            taxes_owed += (taxable_income - floor_value) * tax_percent
+    return taxes_owed
+
+
 class GlobalParameters:
     """An instantiable configuration context that holds tax tables and inflation rates
 
