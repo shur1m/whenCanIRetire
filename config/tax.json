@@ -107,15 +107,25 @@
                 },
                 "StandardTaxDeduction": 5363,
                 "JointTaxDeduction": 10726,
-                "SDITaxPercent": 0.011,
-                "MHSTaxPercent": 0.01,
-                "MHSTaxThreshold": 1000000
+                "Surcharges": [
+                    {
+                        "Name": "SDI",
+                        "Rate": 0.011,
+                        "Type": "payroll"
+                    },
+                    {
+                        "Name": "Mental Health Services",
+                        "Rate": 0.01,
+                        "Threshold": 1000000,
+                        "Type": "ordinary"
+                    }
+                ]
             }
         },
         "FicaTax": {
             "SocialSecurityMaxTaxable": 168600,
             "SocialSecurityTaxPercent": 0.062,
-            "MedicareHighEarnerTax": 0.09,
+            "MedicareHighEarnerTax": 0.009,
             "MedicareHighEarnerSalaryIndividual": 200000,
             "MedicareHighEarnerSalaryJoint": 250000,
             "MedicareTaxPercent": 0.0145
@@ -229,15 +239,25 @@
                 },
                 "StandardTaxDeduction": 5706,
                 "JointTaxDeduction": 11412,
-                "SDITaxPercent": 0.011,
-                "MHSTaxPercent": 0.01,
-                "MHSTaxThreshold": 1000000
+                "Surcharges": [
+                    {
+                        "Name": "SDI",
+                        "Rate": 0.011,
+                        "Type": "payroll"
+                    },
+                    {
+                        "Name": "Mental Health Services",
+                        "Rate": 0.01,
+                        "Threshold": 1000000,
+                        "Type": "ordinary"
+                    }
+                ]
             }
         },
         "FicaTax": {
             "SocialSecurityMaxTaxable": 176100,
             "SocialSecurityTaxPercent": 0.062,
-            "MedicareHighEarnerTax": 0.09,
+            "MedicareHighEarnerTax": 0.009,
             "MedicareHighEarnerSalaryIndividual": 200000,
             "MedicareHighEarnerSalaryJoint": 250000,
             "MedicareTaxPercent": 0.0145
@@ -351,15 +371,25 @@
                 },
                 "StandardTaxDeduction": 5706,
                 "JointTaxDeduction": 11412,
-                "SDITaxPercent": 0.011,
-                "MHSTaxPercent": 0.01,
-                "MHSTaxThreshold": 1000000
+                "Surcharges": [
+                    {
+                        "Name": "SDI",
+                        "Rate": 0.011,
+                        "Type": "payroll"
+                    },
+                    {
+                        "Name": "Mental Health Services",
+                        "Rate": 0.01,
+                        "Threshold": 1000000,
+                        "Type": "ordinary"
+                    }
+                ]
             }
         },
         "FicaTax": {
             "SocialSecurityMaxTaxable": 184500,
             "SocialSecurityTaxPercent": 0.062,
-            "MedicareHighEarnerTax": 0.09,
+            "MedicareHighEarnerTax": 0.009,
             "MedicareHighEarnerSalaryIndividual": 200000,
             "MedicareHighEarnerSalaryJoint": 250000,
             "MedicareTaxPercent": 0.0145

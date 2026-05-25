@@ -263,10 +263,10 @@ class TestMedicareTax:
     def test_high_earner_surtax_individual(self):
         """
         Individual earning $250k: 1.45% base + additional surtax on amount above $200k.
-        Per config/tax.json: MedicareHighEarnerTax = 0.09 (9%).
+        Per config/tax.json: MedicareHighEarnerTax = 0.009 (0.9%).
         base   = 250,000 * 0.0145 = 3,625.00
-        surtax = 50,000  * 0.09   = 4,500.00
-        total  = 8,125.00
+        surtax = 50,000  * 0.009  = 450.00
+        total  = 4,075.00
         """
         income = 250_000
         user = Person(
@@ -276,7 +276,7 @@ class TestMedicareTax:
         )
         config = _setup(user)
         result = calculate_annual_medicare_tax(user, config)
-        # surtax rate is 0.09 (9%) as defined in config/tax.json MedicareHighEarnerTax
+        # surtax rate is 0.009 (0.9%) as defined in config/tax.json MedicareHighEarnerTax
         base = Decimal(str(income)) * Decimal("0.0145")
         surtax = (
             Decimal(str(income)) - Decimal("200000")
