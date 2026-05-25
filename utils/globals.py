@@ -110,6 +110,24 @@ class GlobalParameters:
             else state_schema.JointTaxDeduction
         )
 
+    def calculate_state_surcharges(
+        self, state: State, surcharge_type: str, amount: Decimal
+    ) -> Decimal:
+        if state == State.TEXAS:
+            return Decimal("0")
+        if state not in self.yearly_tax.StateTax:
+            raise ValueError(
+                f"State tax configuration is missing for state '{state.value}' in year {self.year}"
+            )
+        state_schema = self.yearly_tax.StateTax[state]
+        surcharge_tax = Decimal("0")
+        for surcharge in state_schema.Surcharges:
+            if surcharge.Type == surcharge_type:
+                threshold = surcharge.Threshold or Decimal("0")
+                if amount > threshold:
+                    surcharge_tax += surcharge.Rate * (amount - threshold)
+        return surcharge_tax
+
     @property
     def social_security_max_taxable(self) -> Decimal:
         return self.yearly_tax.FicaTax.SocialSecurityMaxTaxable

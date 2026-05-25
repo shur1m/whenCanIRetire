@@ -33,29 +33,17 @@ class CaliforniaTaxCalculator(StateTaxCalculator):
         taxes_owed = calculate_progressive_tax(taxable_income, tax_brackets)
 
         # Apply any ordinary surcharges dynamically
-        state_schema = config.yearly_tax.StateTax.get(State.CALIFORNIA)
-        if state_schema:
-            taxable_state_income = user.get_reduced_income() - tax_deduction
-            for surcharge in state_schema.Surcharges:
-                if surcharge.Type == "ordinary":
-                    threshold = surcharge.Threshold or Decimal("0")
-                    if taxable_state_income > threshold:
-                        taxes_owed += surcharge.Rate * (
-                            taxable_state_income - threshold
-                        )
+        taxable_state_income = user.get_reduced_income() - tax_deduction
+        taxes_owed += config.calculate_state_surcharges(
+            State.CALIFORNIA, "ordinary", taxable_state_income
+        )
 
         return taxes_owed
 
     def calculate_payroll_tax(self, user: Person, config: GlobalParameters) -> Decimal:
-        state_schema = config.yearly_tax.StateTax.get(State.CALIFORNIA)
-        taxes_owed = Decimal("0")
-        if state_schema:
-            for surcharge in state_schema.Surcharges:
-                if surcharge.Type == "payroll":
-                    threshold = surcharge.Threshold or Decimal("0")
-                    if user.pre_tax_income > threshold:
-                        taxes_owed += surcharge.Rate * (user.pre_tax_income - threshold)
-        return taxes_owed
+        return config.calculate_state_surcharges(
+            State.CALIFORNIA, "payroll", user.pre_tax_income
+        )
 
 
 # Strategy registry

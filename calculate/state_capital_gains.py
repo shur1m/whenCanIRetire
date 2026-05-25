@@ -49,13 +49,9 @@ class CaliforniaCapitalGainsCalculator(StateCapitalGainsCalculator):
         tax_brackets = config.get_state_tax_brackets(State.CALIFORNIA, user.filing)
         taxes_owed = calculate_progressive_tax(taxable_income, tax_brackets)
 
-        state_schema = config.yearly_tax.StateTax.get(State.CALIFORNIA)
-        if state_schema:
-            for surcharge in state_schema.Surcharges:
-                if surcharge.Type == "ordinary":
-                    threshold = surcharge.Threshold or Decimal("0")
-                    if taxable_income > threshold:
-                        taxes_owed += surcharge.Rate * (taxable_income - threshold)
+        taxes_owed += config.calculate_state_surcharges(
+            State.CALIFORNIA, "ordinary", taxable_income
+        )
 
         return taxes_owed
 
