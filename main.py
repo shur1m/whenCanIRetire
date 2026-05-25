@@ -4,12 +4,11 @@ import matplotlib.pyplot as plt
 import logging
 import json
 
-from calculate.federal_tax import (
+from calculate.aggregate import (
     calculate_income_distribution_data,
     calculate_retirement_deductions_excess,
 )
 from calculate.retirement import simulate_account
-from utils.enums import Frequency
 from utils.parameters import Person
 from utils.parse_parameters import parse_parameters
 from utils.globals import GlobalParameters

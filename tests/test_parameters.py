@@ -11,7 +11,7 @@ Covers Person and Account model behaviors:
 
 import pytest
 from utils.parameters import Person, Account
-from utils.enums import Filing, Frequency, AccountType, State
+from utils.enums import Frequency, AccountType
 
 # ===========================================================================
 # Person.get_reduced_income
