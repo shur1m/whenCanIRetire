@@ -76,14 +76,19 @@ class FederalTaxSchema(BaseModel):
     CapitalGainsTax: FederalCapitalGainsTaxSchema
 
 
+class SurchargeSchema(BaseModel):
+    Name: str
+    Rate: Decimal
+    Threshold: Optional[Decimal] = None
+    Type: str  # "payroll" or "ordinary"
+
+
 class StateTaxSchema(BaseModel):
     Individual: TaxBracketSchema
     Joint: TaxBracketSchema
     StandardTaxDeduction: Decimal
     JointTaxDeduction: Decimal
-    SDITaxPercent: Optional[Decimal] = None
-    MHSTaxPercent: Optional[Decimal] = None
-    MHSTaxThreshold: Optional[Decimal] = None
+    Surcharges: List[SurchargeSchema] = Field(default_factory=list)
 
 
 class FicaTaxSchema(BaseModel):

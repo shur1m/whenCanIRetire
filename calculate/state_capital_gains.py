@@ -47,28 +47,17 @@ class CaliforniaCapitalGainsCalculator(StateCapitalGainsCalculator):
         tax_deduction = config.get_state_tax_deduction(State.CALIFORNIA, user.filing)
         taxable_income = max(Decimal("0"), capital_gains - tax_deduction)
         tax_brackets = config.get_state_tax_brackets(State.CALIFORNIA, user.filing)
-
-        state_schema = config.yearly_tax.StateTax.get(State.CALIFORNIA)
-        mhs_percent = (
-            state_schema.MHSTaxPercent
-            if state_schema and state_schema.MHSTaxPercent is not None
-            else Decimal("0.01")
-        )
-        mhs_threshold = (
-            state_schema.MHSTaxThreshold
-            if state_schema and state_schema.MHSTaxThreshold is not None
-            else Decimal("1000000")
-        )
-
-        MHS_tax = (
-            mhs_percent * (taxable_income - mhs_threshold)
-            if taxable_income > mhs_threshold
-            else Decimal("0")
-        )
-
         taxes_owed = calculate_progressive_tax(taxable_income, tax_brackets)
 
-        return taxes_owed + MHS_tax
+        state_schema = config.yearly_tax.StateTax.get(State.CALIFORNIA)
+        if state_schema:
+            for surcharge in state_schema.Surcharges:
+                if surcharge.Type == "ordinary":
+                    threshold = surcharge.Threshold or Decimal("0")
+                    if taxable_income > threshold:
+                        taxes_owed += surcharge.Rate * (taxable_income - threshold)
+
+        return taxes_owed
 
 
 class FallbackStateCapitalGainsCalculator(StateCapitalGainsCalculator):

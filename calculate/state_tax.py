@@ -27,41 +27,35 @@ class CaliforniaTaxCalculator(StateTaxCalculator):
     def calculate_tax(self, user: Person, config: GlobalParameters) -> Decimal:
         tax_deduction = config.get_state_tax_deduction(State.CALIFORNIA, user.filing)
 
-        state_schema = config.yearly_tax.StateTax.get(State.CALIFORNIA)
-        mhs_percent = (
-            state_schema.MHSTaxPercent
-            if state_schema and state_schema.MHSTaxPercent is not None
-            else Decimal("0.01")
-        )
-        mhs_threshold = (
-            state_schema.MHSTaxThreshold
-            if state_schema and state_schema.MHSTaxThreshold is not None
-            else Decimal("1000000")
-        )
-
-        # Mental Health Services tax (MHS)
-        taxable_state_income = user.get_reduced_income() - tax_deduction
-        MHS_tax = (
-            mhs_percent * (taxable_state_income - mhs_threshold)
-            if taxable_state_income > mhs_threshold
-            else Decimal("0")
-        )
-
         # Bracket-based state income tax
         taxable_income = max(Decimal("0"), user.get_reduced_income() - tax_deduction)
         tax_brackets = config.get_state_tax_brackets(State.CALIFORNIA, user.filing)
         taxes_owed = calculate_progressive_tax(taxable_income, tax_brackets)
 
-        return taxes_owed + MHS_tax
+        # Apply any ordinary surcharges dynamically
+        state_schema = config.yearly_tax.StateTax.get(State.CALIFORNIA)
+        if state_schema:
+            taxable_state_income = user.get_reduced_income() - tax_deduction
+            for surcharge in state_schema.Surcharges:
+                if surcharge.Type == "ordinary":
+                    threshold = surcharge.Threshold or Decimal("0")
+                    if taxable_state_income > threshold:
+                        taxes_owed += surcharge.Rate * (
+                            taxable_state_income - threshold
+                        )
+
+        return taxes_owed
 
     def calculate_payroll_tax(self, user: Person, config: GlobalParameters) -> Decimal:
         state_schema = config.yearly_tax.StateTax.get(State.CALIFORNIA)
-        sdi_percent = (
-            state_schema.SDITaxPercent
-            if state_schema and state_schema.SDITaxPercent is not None
-            else Decimal("0.011")
-        )
-        return sdi_percent * user.pre_tax_income
+        taxes_owed = Decimal("0")
+        if state_schema:
+            for surcharge in state_schema.Surcharges:
+                if surcharge.Type == "payroll":
+                    threshold = surcharge.Threshold or Decimal("0")
+                    if user.pre_tax_income > threshold:
+                        taxes_owed += surcharge.Rate * (user.pre_tax_income - threshold)
+        return taxes_owed
 
 
 # Strategy registry
