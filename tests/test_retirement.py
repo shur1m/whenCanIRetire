@@ -23,7 +23,7 @@ from calculate.retirement import (
     _simulate_accumulation,
     _simulate_retirement,
 )
-from calculate.federal_tax import calculate_annual_income_tax
+from calculate.aggregate import calculate_annual_income_tax
 from utils.globals import GlobalParameters
 from utils.parameters import Person, Account
 from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State
@@ -692,7 +692,7 @@ class TestSimulateAccount:
         )
 
         # Calculate standard tax on the same amount (includes FICA/SDI)
-        from calculate.federal_tax import calculate_annual_income_tax
+        from calculate.aggregate import calculate_annual_income_tax
 
         user_ca.pre_tax_income = Decimal("100000")
         std_tax = calculate_annual_income_tax(user_ca, config_2024)
