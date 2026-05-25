@@ -37,6 +37,22 @@ class GlobalParameters:
             else self.yearly_tax.FederalTax.JointTaxDeduction
         )
 
+    def get_fed_capital_gains_brackets(
+        self, filing: Filing
+    ) -> list[tuple[Decimal, Decimal]]:
+        if self.yearly_tax.FederalTax.CapitalGainsTax is None:
+            return self.get_fed_tax_brackets(filing)
+
+        bracket_schema = (
+            self.yearly_tax.FederalTax.CapitalGainsTax.Individual
+            if filing == Filing.INDIVIDUAL
+            else self.yearly_tax.FederalTax.CapitalGainsTax.Joint
+        )
+        return [
+            (p, lb)
+            for p, lb in zip(bracket_schema.Percents, bracket_schema.LowerBounds)
+        ]
+
     def get_state_tax_brackets(
         self, state: State, filing: Filing
     ) -> list[tuple[Decimal, Decimal]]:

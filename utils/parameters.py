@@ -31,6 +31,7 @@ class Account:
 
         self.owner: Person = owner
         self.initial_savings: Decimal = to_decimal(initial_savings)
+        self.cost_basis: Decimal = self.initial_savings
         self.regular_investment_dollar: Decimal = to_decimal(regular_investment_dollar)
         self.regular_investment_frequency: Frequency = regular_investment_frequency
         self.annual_investment_increase: Decimal = to_decimal(

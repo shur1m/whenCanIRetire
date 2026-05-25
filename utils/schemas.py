@@ -62,11 +62,17 @@ class TaxBracketSchema(BaseModel):
     Percents: List[Decimal]
 
 
+class FederalCapitalGainsTaxSchema(BaseModel):
+    Individual: TaxBracketSchema
+    Joint: TaxBracketSchema
+
+
 class FederalTaxSchema(BaseModel):
     Individual: TaxBracketSchema
     Joint: TaxBracketSchema
     StandardTaxDeduction: Decimal
     JointTaxDeduction: Decimal
+    CapitalGainsTax: Optional[FederalCapitalGainsTaxSchema] = None
 
 
 class StateTaxSchema(BaseModel):

@@ -137,7 +137,17 @@
                 "Percents": []
             },
             "StandardTaxDeduction": 15000,
-            "JointTaxDeduction": 30000
+            "JointTaxDeduction": 30000,
+            "CapitalGainsTax": {
+                "Individual": {
+                    "LowerBounds": [0, 48351, 533401],
+                    "Percents": [0.0, 0.15, 0.2]
+                },
+                "Joint": {
+                    "LowerBounds": [0, 96701, 600051],
+                    "Percents": [0.0, 0.15, 0.2]
+                }
+            }
         },
         "StateTax": {},
         "FicaTax": {
@@ -175,7 +185,17 @@
                 "Percents": []
             },
             "StandardTaxDeduction": 16100,
-            "JointTaxDeduction": 32200
+            "JointTaxDeduction": 32200,
+            "CapitalGainsTax": {
+                "Individual": {
+                    "LowerBounds": [0, 49451, 545501],
+                    "Percents": [0.0, 0.15, 0.2]
+                },
+                "Joint": {
+                    "LowerBounds": [0, 98901, 613701],
+                    "Percents": [0.0, 0.15, 0.2]
+                }
+            }
         },
         "StateTax": {},
         "FicaTax": {
