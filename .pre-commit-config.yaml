@@ -1,0 +1,5 @@
+repos:
+  - repo: https://github.com
+    rev: 26.5.1  # Use the latest version
+    hooks:
+      - id: black
