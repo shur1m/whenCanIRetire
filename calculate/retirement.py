@@ -1,8 +1,13 @@
 from typing import Union
 from decimal import Decimal, ROUND_HALF_UP
-from calculate.federal_tax import calculate_annual_income_tax
+from calculate.federal_tax import (
+    calculate_annual_income_tax,
+    calculate_annual_federal_income_tax,
+    calculate_annual_state_income_tax,
+)
+from calculate.state_tax import get_state_capital_gains_calculator
 from utils.parameters import Person, Account, to_decimal
-from utils.enums import Frequency, MonthlyCompoundType, AccountType
+from utils.enums import Frequency, MonthlyCompoundType, AccountType, State
 from utils.globals import GlobalParameters
 
 
@@ -95,24 +100,144 @@ def _simulate_accumulation(
 
             # monthly addition to investment account
             if account.regular_investment_frequency == Frequency.MONTHLY:
-                current_savings += account.regular_investment_dollar * (
+                contribution = account.regular_investment_dollar * (
                     (
                         (Decimal("1") + account.annual_investment_increase)
                         ** (Decimal("1") / Decimal("12"))
                     )
                     ** (year * 12 + month)
                 )
+                current_savings += contribution
+                if account.account_type == AccountType.GENERIC:
+                    account.cost_basis += contribution
 
         # yearly addition to investment account
         if account.regular_investment_frequency == Frequency.ANNUALLY:
-            current_savings += account.regular_investment_dollar * (
+            contribution = account.regular_investment_dollar * (
                 (Decimal("1") + account.annual_investment_increase) ** year
             )
+            current_savings += contribution
+            if account.account_type == AccountType.GENERIC:
+                account.cost_basis += contribution
 
         graph_labels.append(account.owner.current_age + year)
         graph_savings_values.append(current_savings)
 
     return current_savings
+
+
+def calculate_retirement_withdrawal_tax(
+    amount: Decimal,
+    account: Account,
+    config: GlobalParameters,
+    is_capital_gains: bool = False,
+) -> Decimal:
+    """Calculates Federal and State taxes for a retirement withdrawal amount.
+
+    Excludes payroll taxes (FICA and California SDI) as they only apply to wage/earned income.
+
+    Sources:
+    - IRS Topic No. 409 Capital Gains and Losses: https://www.irs.gov/taxtopics/tc409 (Federal LTCG rates)
+    - NerdWallet Capital Gains Tax Rates: https://www.nerdwallet.com/taxes/learn/capital-gains-tax-rates (Federal LTCG brackets)
+    - California Franchise Tax Board FTB: https://www.ftb.ca.gov/file/personal/income-types/capital-gains-and-losses.html (State LTCG taxed as ordinary income)
+    - California Employment Development Department Wages Sheet (EDD): https://edd.ca.gov/siteassets/files/pdf_pub_ctr/de231a.pdf (SDI payroll tax only applies to wages)
+    - Investopedia State Taxes: https://www.investopedia.com/where-can-you-avoid-state-taxes-on-capital-gains-dividends-and-investment-income-11965488 (Texas has 0% state capital gains / income tax)
+    """
+    user = account.owner
+    dummy_person = Person(
+        current_age=user.current_age,
+        retirement_age=user.retirement_age,
+        lifespan=user.lifespan,
+        pre_tax_income=amount,
+        state_of_residence=user.state_of_residence,
+        filing=user.filing,
+    )
+
+    # 1. Federal tax
+    if is_capital_gains:
+        deduction = config.get_fed_tax_deduction(user.filing)
+        taxable_gains = max(Decimal("0"), amount - deduction)
+        brackets = config.get_fed_capital_gains_brackets(user.filing)
+
+        fed_tax = Decimal("0")
+        for i in range(len(brackets)):
+            tax_percent, floor_value = brackets[i]
+            ceiling_value = (
+                brackets[i + 1][1] - Decimal("1")
+                if i + 1 < len(brackets)
+                else Decimal("Infinity")
+            )
+            if taxable_gains > ceiling_value:
+                fed_tax += (ceiling_value - floor_value) * tax_percent
+            elif taxable_gains <= floor_value:
+                break
+            else:
+                fed_tax += (taxable_gains - floor_value) * tax_percent
+    else:
+        fed_tax = calculate_annual_federal_income_tax(dummy_person, config)
+
+    # 2. State tax
+    if is_capital_gains:
+        calculator = get_state_capital_gains_calculator(user.state_of_residence)
+        state_tax = calculator.calculate_capital_gains_tax(amount, dummy_person, config)
+    else:
+        state_tax = calculate_annual_state_income_tax(dummy_person, config)
+        # Exclude California SDI from retirement withdrawals
+        if user.state_of_residence == State.CALIFORNIA:
+            state_schema = config.yearly_tax.StateTax.get(State.CALIFORNIA)
+            sdi_percent = (
+                state_schema.SDITaxPercent
+                if state_schema and state_schema.SDITaxPercent is not None
+                else Decimal("0.011")
+            )
+            state_tax = max(Decimal("0"), state_tax - sdi_percent * amount)
+
+    return fed_tax + state_tax
+
+
+def _calculate_retirement_pre_tax_income(
+    post_tax_income: Decimal,
+    account: Account,
+    current_savings: Decimal,
+    config: GlobalParameters,
+) -> Decimal:
+    """Binary search to find the pre-tax monthly withdrawal needed to net a post-tax monthly amount."""
+    if account.account_type not in (AccountType.GENERIC, AccountType.TRADITIONAL):
+        return post_tax_income
+
+    left = post_tax_income
+    right = post_tax_income * Decimal("5")
+    pre_tax_income = right
+
+    while abs(right - left) > Decimal("0.01"):
+        pre_tax_income = left + (right - left) / Decimal("2")
+        pre_tax_annual = pre_tax_income * 12
+
+        if account.account_type == AccountType.TRADITIONAL:
+            tax_annual = calculate_retirement_withdrawal_tax(
+                pre_tax_annual, account, config, is_capital_gains=False
+            )
+        else:  # GENERIC
+            gain_ratio = Decimal("0")
+            if current_savings > 0:
+                gain_ratio = max(
+                    Decimal("0"),
+                    (current_savings - account.cost_basis) / current_savings,
+                )
+            gains_annual = pre_tax_annual * gain_ratio
+            tax_annual = calculate_retirement_withdrawal_tax(
+                gains_annual, account, config, is_capital_gains=True
+            )
+
+        tax_monthly = tax_annual / Decimal("12")
+        net_monthly = pre_tax_income - tax_monthly
+
+        if net_monthly > post_tax_income:
+            right = pre_tax_income
+        else:
+            left = pre_tax_income
+
+    return pre_tax_income.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def _simulate_retirement(
@@ -124,32 +249,57 @@ def _simulate_retirement(
 ) -> None:
     # retirement phase (no social security)
     retirement_months = 0
-    annual_retirement_withdrawal = account.annual_retirement_post_tax_expense
-
-    # binary search pre tax expense given post tax expense for Generic and Traditional account withdrawals, Roth/HSA withdrawals are not adjusted
-    if (
-        account.account_type == AccountType.GENERIC
-        or account.account_type == AccountType.TRADITIONAL
-    ):
-        annual_retirement_withdrawal = _calculate_pre_tax_income(
-            annual_retirement_withdrawal, account.owner, config
-        )
+    post_tax_annual_expense = account.annual_retirement_post_tax_expense
+    post_tax_monthly_withdrawal = post_tax_annual_expense / Decimal("12")
 
     while (
-        current_savings >= annual_retirement_withdrawal / Decimal("12")
+        current_savings > Decimal("0")
         and account.owner.retirement_age + retirement_months // 12
         < account.owner.lifespan
     ):
-
-        # each month, subtract monthly "paycheck" and compound
         months_since_today = (
             account.owner.retirement_age - account.owner.current_age
         ) * 12 + retirement_months
-        current_savings -= _adjust_for_inflation(
-            annual_retirement_withdrawal / Decimal("12"),
+
+        # Inflate the target monthly post-tax withdrawal
+        inflated_post_tax_monthly = _adjust_for_inflation(
+            post_tax_monthly_withdrawal,
             months_since_today,
             config,
         )
+
+        # Calculate the pre-tax monthly withdrawal needed dynamically based on current cost basis
+        pre_tax_monthly = _calculate_retirement_pre_tax_income(
+            inflated_post_tax_monthly,
+            account,
+            current_savings,
+            config,
+        )
+
+        if current_savings < pre_tax_monthly:
+            withdrawal_pre_tax = current_savings
+            current_savings = Decimal("0")
+        else:
+            withdrawal_pre_tax = pre_tax_monthly
+            current_savings -= pre_tax_monthly
+
+        # If it's a GENERIC account, decrease cost_basis proportionally
+        if account.account_type == AccountType.GENERIC and current_savings > Decimal(
+            "0"
+        ):
+            gain_ratio = max(
+                Decimal("0"),
+                (current_savings + withdrawal_pre_tax - account.cost_basis)
+                / (current_savings + withdrawal_pre_tax),
+            )
+            cost_basis_withdrawn = withdrawal_pre_tax * (Decimal("1") - gain_ratio)
+            account.cost_basis = max(
+                Decimal("0"), account.cost_basis - cost_basis_withdrawn
+            )
+        elif account.account_type == AccountType.GENERIC and current_savings == Decimal(
+            "0"
+        ):
+            account.cost_basis = Decimal("0")
 
         if account.compound_frequency == Frequency.MONTHLY:
             current_savings *= (Decimal("1") + account.annual_retirement_return) ** (
