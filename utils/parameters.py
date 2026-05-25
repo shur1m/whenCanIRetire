@@ -68,7 +68,7 @@ class Person:
         self.retirement_age: int = retirement_age
         self.lifespan: int = lifespan
         self.pre_tax_income: Decimal = to_decimal(pre_tax_income)
-        self.income_tax_deductions: Decimal = to_decimal(
+        self.additional_income_tax_deductions: Decimal = to_decimal(
             additional_income_tax_deductions
         )
         self.accumulation_phase_expenses: dict[str, Decimal] = (
@@ -92,15 +92,6 @@ class Person:
 
         self.accounts[account_name] = account
 
-        if (
-            account.account_type == AccountType.TRADITIONAL
-            or account.account_type == AccountType.HSA
-        ):
-            if account.regular_investment_frequency == Frequency.MONTHLY:
-                self.income_tax_deductions += account.regular_investment_dollar * 12
-            elif account.regular_investment_frequency == Frequency.ANNUALLY:
-                self.income_tax_deductions += account.regular_investment_dollar
-
     def create_account(
         self, account_name: Optional[str] = None, **account_kwargs
     ) -> Account:
@@ -120,6 +111,18 @@ class Person:
             self.accumulation_phase_expenses[name] = expense_decimal * 12
         elif frequency == Frequency.ANNUALLY:
             self.accumulation_phase_expenses[name] = expense_decimal
+
+    @property
+    def income_tax_deductions(self) -> Decimal:
+        """Returns total income tax deductions (additional base deductions + retirement contributions)"""
+        total = self.additional_income_tax_deductions
+        for account in self.accounts.values():
+            if account.account_type in (AccountType.TRADITIONAL, AccountType.HSA):
+                if account.regular_investment_frequency == Frequency.MONTHLY:
+                    total += account.regular_investment_dollar * 12
+                elif account.regular_investment_frequency == Frequency.ANNUALLY:
+                    total += account.regular_investment_dollar
+        return total
 
     def get_reduced_income(self) -> Decimal:
         """returns income after subtracting 401(k) and HSA deductions"""

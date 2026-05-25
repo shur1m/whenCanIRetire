@@ -86,7 +86,6 @@ def calculate_retirement_deductions_excess(
     """Calculates tax savings achieved by contributing to pre-tax retirement accounts (401(k), HSA)."""
     no_deduction_user = copy.copy(user)
     no_deduction_user.accounts = dict()
-    no_deduction_user.income_tax_deductions = Decimal("0")
 
     return calculate_annual_income_tax(no_deduction_user, config) - user_tax
 

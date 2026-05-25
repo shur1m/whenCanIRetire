@@ -104,14 +104,6 @@ def generate_income_distribution_graph(
 def main():
     user, config = parse_parameters()
 
-    # TODO company match, needs to be changed so that contribution does not subtract from pay
-    # HSA company match
-    # user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-    #                     regular_investment_dollar=500/12,
-    #                     annual_investment_increase=0.02,
-    #                     account_type=AccountType.HSA,
-    #                     annual_retirement_post_tax_expense=16_000), "HSA company match")
-
     fig, (ax1, ax2) = plt.subplots(1, 2)  # type: ignore
     generate_investment_growth_graph(user, config, ax1)
     generate_income_distribution_graph(user, config, ax2)
@@ -120,17 +112,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# ! allow company contributions to retirement accounts to not affect your total money in pie chart
-# ! calculate how much to withdraw each year from account in order to end at the death age
-#   - should be a toggle in account T/F
-# ! allow users to compare two different plans for investment in one run
-# ! add toggle for post tax income, so that tax is not calculated
-# ! add toggle for company matches that does not subtract from pay, also add another text for company match total. Company match should not show up in pie.
-# ! show how much money withdrawn from each account during retirement phase
-# ! calculate total money spent (post tax income during accumulation + post tax withdrawal during retirement)
-# ! automatically calculate retirement expense to end at life expectancy
-# ! allow user to set timespan during the accumulation phase where they are contributing
-#  - (useful for hsa where only young people can contribute because they are healthy)
-# ! allow user to set timespan during retirement phase where they are withdrawing
-# ! nice to have: ui and dynamic changes, options for bankers rounding vs normal rounding to whole numbers

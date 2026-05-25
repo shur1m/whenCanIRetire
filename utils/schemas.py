@@ -74,6 +74,9 @@ class StateTaxSchema(BaseModel):
     Joint: TaxBracketSchema
     StandardTaxDeduction: Decimal
     JointTaxDeduction: Decimal
+    SDITaxPercent: Optional[Decimal] = None
+    MHSTaxPercent: Optional[Decimal] = None
+    MHSTaxThreshold: Optional[Decimal] = None
 
 
 class FicaTaxSchema(BaseModel):

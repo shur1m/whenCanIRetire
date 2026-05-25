@@ -41,6 +41,10 @@ class GlobalParameters:
         self, state: State, filing: Filing
     ) -> list[tuple[Decimal, Decimal]]:
         if state not in self.yearly_tax.StateTax:
+            if state != State.TEXAS:
+                raise ValueError(
+                    f"State tax brackets configuration is missing for state '{state.value}' in year {self.year}"
+                )
             return []
         state_schema = self.yearly_tax.StateTax[state]
         bracket_schema = (
@@ -55,6 +59,10 @@ class GlobalParameters:
 
     def get_state_tax_deduction(self, state: State, filing: Filing) -> Decimal:
         if state not in self.yearly_tax.StateTax:
+            if state != State.TEXAS:
+                raise ValueError(
+                    f"State tax deduction configuration is missing for state '{state.value}' in year {self.year}"
+                )
             return Decimal("0")
         state_schema = self.yearly_tax.StateTax[state]
         return (

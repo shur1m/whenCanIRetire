@@ -25,13 +25,31 @@ class CaliforniaTaxCalculator(StateTaxCalculator):
         tax_deduction = config.get_state_tax_deduction(State.CALIFORNIA, user.filing)
         additional_state_tax = Decimal("0")
 
+        state_schema = config.yearly_tax.StateTax.get(State.CALIFORNIA)
+        sdi_percent = (
+            state_schema.SDITaxPercent
+            if state_schema and state_schema.SDITaxPercent is not None
+            else Decimal("0.011")
+        )
+        mhs_percent = (
+            state_schema.MHSTaxPercent
+            if state_schema and state_schema.MHSTaxPercent is not None
+            else Decimal("0.01")
+        )
+        mhs_threshold = (
+            state_schema.MHSTaxThreshold
+            if state_schema and state_schema.MHSTaxThreshold is not None
+            else Decimal("1000000")
+        )
+
         # SDI tax
-        SDI_tax = Decimal("0.011") * (user.pre_tax_income - tax_deduction)
+        SDI_tax = sdi_percent * user.pre_tax_income
 
         # Mental Health Services tax (MHS)
+        taxable_state_income = user.get_reduced_income() - tax_deduction
         MHS_tax = (
-            Decimal("0.01") * (user.get_reduced_income() - tax_deduction)
-            if user.get_reduced_income() > Decimal("1000000")
+            mhs_percent * taxable_state_income
+            if taxable_state_income > mhs_threshold
             else Decimal("0")
         )
         additional_state_tax += SDI_tax + MHS_tax

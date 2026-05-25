@@ -57,3 +57,32 @@ def test_invalid_tax_json_missing_federal_tax():
     with pytest.raises(ValidationError) as exc_info:
         TaxSchema.model_validate(invalid_data)
     assert "FederalTax" in str(exc_info.value)
+
+
+def test_missing_state_tax_raises_value_error(tax_data):
+    from utils.parameters import Person
+    from utils.enums import Filing, State
+    from utils.globals import GlobalParameters
+    from decimal import Decimal
+
+    user = Person(
+        current_age=30,
+        retirement_age=65,
+        lifespan=90,
+        pre_tax_income=115_000,
+        state_of_residence=State.CALIFORNIA,
+        filing=Filing.INDIVIDUAL,
+    )
+    config_2026 = GlobalParameters(
+        year=2026,
+        inflation_rate=Decimal("0.03"),
+        yearly_tax=tax_data.root["2026"],
+    )
+
+    with pytest.raises(ValueError, match="State tax brackets configuration is missing"):
+        config_2026.get_state_tax_brackets(State.CALIFORNIA, user.filing)
+
+    with pytest.raises(
+        ValueError, match="State tax deduction configuration is missing"
+    ):
+        config_2026.get_state_tax_deduction(State.CALIFORNIA, user.filing)
