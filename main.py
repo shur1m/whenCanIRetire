@@ -104,6 +104,14 @@ def generate_income_distribution_graph(
 def main():
     user, config = parse_parameters()
 
+    # TODO company match, needs to be changed so that contribution does not subtract from pay
+    # HSA company match
+    # user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
+    #                     regular_investment_dollar=500/12,
+    #                     annual_investment_increase=0.02,
+    #                     account_type=AccountType.HSA,
+    #                     annual_retirement_post_tax_expense=16_000), "HSA company match")
+
     fig, (ax1, ax2) = plt.subplots(1, 2)  # type: ignore
     generate_investment_growth_graph(user, config, ax1)
     generate_income_distribution_graph(user, config, ax2)

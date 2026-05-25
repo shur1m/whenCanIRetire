@@ -48,7 +48,7 @@ class CaliforniaTaxCalculator(StateTaxCalculator):
         # Mental Health Services tax (MHS)
         taxable_state_income = user.get_reduced_income() - tax_deduction
         MHS_tax = (
-            mhs_percent * taxable_state_income
+            mhs_percent * (taxable_state_income - mhs_threshold)
             if taxable_state_income > mhs_threshold
             else Decimal("0")
         )
