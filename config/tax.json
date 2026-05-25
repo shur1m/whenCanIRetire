@@ -5,12 +5,12 @@
             "Individual": {
                 "LowerBounds": [
                     0,
-                    11601,
-                    47151,
-                    100526,
-                    191951,
-                    243726,
-                    609351
+                    11600,
+                    47150,
+                    100525,
+                    191950,
+                    243725,
+                    609350
                 ],
                 "Percents": [
                     0.10,
@@ -25,12 +25,12 @@
             "Joint": {
                 "LowerBounds": [
                     0,
-                    22001,
-                    89451,
-                    190751,
-                    364201,
-                    462501,
-                    693751
+                    22000,
+                    89450,
+                    190750,
+                    364200,
+                    462500,
+                    693750
                 ],
                 "Percents": [
                     0.10,
@@ -46,11 +46,11 @@
             "JointTaxDeduction": 27700,
             "CapitalGainsTax": {
                 "Individual": {
-                    "LowerBounds": [0, 47026, 518901],
+                    "LowerBounds": [0, 47025, 518900],
                     "Percents": [0.0, 0.15, 0.2]
                 },
                 "Joint": {
-                    "LowerBounds": [0, 94051, 583751],
+                    "LowerBounds": [0, 94050, 583750],
                     "Percents": [0.0, 0.15, 0.2]
                 }
             }
@@ -131,7 +131,8 @@
                     48475,
                     103350,
                     197300,
-                    250525
+                    250525,
+                    626350
                 ],
                 "Percents": [
                     0.10,
@@ -139,27 +140,100 @@
                     0.22,
                     0.24,
                     0.32,
-                    0.35
+                    0.35,
+                    0.37
                 ]
             },
             "Joint": {
-                "LowerBounds": [],
-                "Percents": []
+                "LowerBounds": [
+                    0,
+                    23850,
+                    96950,
+                    206700,
+                    394600,
+                    501050,
+                    751600
+                ],
+                "Percents": [
+                    0.10,
+                    0.12,
+                    0.22,
+                    0.24,
+                    0.32,
+                    0.35,
+                    0.37
+                ]
             },
-            "StandardTaxDeduction": 15000,
-            "JointTaxDeduction": 30000,
+            "StandardTaxDeduction": 15750,
+            "JointTaxDeduction": 31500,
             "CapitalGainsTax": {
                 "Individual": {
-                    "LowerBounds": [0, 48351, 533401],
+                    "LowerBounds": [0, 48350, 533400],
                     "Percents": [0.0, 0.15, 0.2]
                 },
                 "Joint": {
-                    "LowerBounds": [0, 96701, 600051],
+                    "LowerBounds": [0, 96700, 600050],
                     "Percents": [0.0, 0.15, 0.2]
                 }
             }
         },
-        "StateTax": {},
+        "StateTax": {
+            "California": {
+                "Individual": {
+                    "LowerBounds": [
+                        0,
+                        11079,
+                        26264,
+                        41452,
+                        57542,
+                        72724,
+                        371479,
+                        445771,
+                        742953
+                    ],
+                    "Percents": [
+                        0.01,
+                        0.02,
+                        0.04,
+                        0.06,
+                        0.08,
+                        0.093,
+                        0.103,
+                        0.113,
+                        0.123
+                    ]
+                },
+                "Joint": {
+                    "LowerBounds": [
+                        0,
+                        22158,
+                        52528,
+                        82904,
+                        115084,
+                        145448,
+                        742958,
+                        891542,
+                        1485906
+                    ],
+                    "Percents": [
+                        0.01,
+                        0.02,
+                        0.04,
+                        0.06,
+                        0.08,
+                        0.093,
+                        0.103,
+                        0.113,
+                        0.123
+                    ]
+                },
+                "StandardTaxDeduction": 5706,
+                "JointTaxDeduction": 11412,
+                "SDITaxPercent": 0.011,
+                "MHSTaxPercent": 0.01,
+                "MHSTaxThreshold": 1000000
+            }
+        },
         "FicaTax": {
             "SocialSecurityMaxTaxable": 176100,
             "SocialSecurityTaxPercent": 0.062,
@@ -179,7 +253,8 @@
                     50400,
                     105700,
                     201775,
-                    256225
+                    256225,
+                    640600
                 ],
                 "Percents": [
                     0.10,
@@ -187,27 +262,100 @@
                     0.22,
                     0.24,
                     0.32,
-                    0.35
+                    0.35,
+                    0.37
                 ]
             },
             "Joint": {
-                "LowerBounds": [],
-                "Percents": []
+                "LowerBounds": [
+                    0,
+                    24800,
+                    100800,
+                    211400,
+                    403550,
+                    512450,
+                    768700
+                ],
+                "Percents": [
+                    0.10,
+                    0.12,
+                    0.22,
+                    0.24,
+                    0.32,
+                    0.35,
+                    0.37
+                ]
             },
             "StandardTaxDeduction": 16100,
             "JointTaxDeduction": 32200,
             "CapitalGainsTax": {
                 "Individual": {
-                    "LowerBounds": [0, 49451, 545501],
+                    "LowerBounds": [0, 49450, 545500],
                     "Percents": [0.0, 0.15, 0.2]
                 },
                 "Joint": {
-                    "LowerBounds": [0, 98901, 613701],
+                    "LowerBounds": [0, 98900, 613700],
                     "Percents": [0.0, 0.15, 0.2]
                 }
             }
         },
-        "StateTax": {},
+        "StateTax": {
+            "California": {
+                "Individual": {
+                    "LowerBounds": [
+                        0,
+                        11079,
+                        26264,
+                        41452,
+                        57542,
+                        72724,
+                        371479,
+                        445771,
+                        742953
+                    ],
+                    "Percents": [
+                        0.01,
+                        0.02,
+                        0.04,
+                        0.06,
+                        0.08,
+                        0.093,
+                        0.103,
+                        0.113,
+                        0.123
+                    ]
+                },
+                "Joint": {
+                    "LowerBounds": [
+                        0,
+                        22158,
+                        52528,
+                        82904,
+                        115084,
+                        145448,
+                        742958,
+                        891542,
+                        1485906
+                    ],
+                    "Percents": [
+                        0.01,
+                        0.02,
+                        0.04,
+                        0.06,
+                        0.08,
+                        0.093,
+                        0.103,
+                        0.113,
+                        0.123
+                    ]
+                },
+                "StandardTaxDeduction": 5706,
+                "JointTaxDeduction": 11412,
+                "SDITaxPercent": 0.011,
+                "MHSTaxPercent": 0.01,
+                "MHSTaxThreshold": 1000000
+            }
+        },
         "FicaTax": {
             "SocialSecurityMaxTaxable": 184500,
             "SocialSecurityTaxPercent": 0.062,

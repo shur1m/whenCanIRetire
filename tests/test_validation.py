@@ -64,6 +64,7 @@ def test_missing_state_tax_raises_value_error(tax_data):
     from utils.enums import Filing, State
     from utils.globals import GlobalParameters
     from decimal import Decimal
+    import copy
 
     user = Person(
         current_age=30,
@@ -73,10 +74,16 @@ def test_missing_state_tax_raises_value_error(tax_data):
         state_of_residence=State.CALIFORNIA,
         filing=Filing.INDIVIDUAL,
     )
+
+    # Create a copy and remove California from StateTax to simulate missing state tax configuration
+    yearly_tax_copy = copy.deepcopy(tax_data.root["2026"])
+    if State.CALIFORNIA in yearly_tax_copy.StateTax:
+        del yearly_tax_copy.StateTax[State.CALIFORNIA]
+
     config_2026 = GlobalParameters(
         year=2026,
         inflation_rate=Decimal("0.03"),
-        yearly_tax=tax_data.root["2026"],
+        yearly_tax=yearly_tax_copy,
     )
 
     with pytest.raises(ValueError, match="State tax brackets configuration is missing"):

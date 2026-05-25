@@ -615,9 +615,9 @@ class TestSimulateAccount:
         user_2025 = Person(filing=Filing.INDIVIDUAL, state_of_residence=State.TEXAS)
         account_2025 = Account(owner=user_2025, account_type=AccountType.GENERIC)
 
-        # Under 2025 Single: 0% up to 48,350. Standard deduction is 15,000.
-        # Taxable gain = 60,000 - 15,000 = 45,000.
-        # Since 45,000 <= 48,350, it is all taxed at 0%. Total tax = 0.
+        # Under 2025 Single: 0% up to 48,350. Standard deduction is 15,750.
+        # Taxable gain = 60,000 - 15,750 = 44,250.
+        # Since 44,250 <= 48,350, it is all taxed at 0%. Total tax = 0.
         from calculate.retirement import calculate_retirement_withdrawal_tax
 
         tax = calculate_retirement_withdrawal_tax(
@@ -626,14 +626,14 @@ class TestSimulateAccount:
         assert tax == Decimal("0")
 
         # If gain is 100,000:
-        # Taxable gain = 100,000 - 15,000 = 85,000.
+        # Taxable gain = 100,000 - 15,750 = 84,250.
         # First 48,350 taxed at 0% (0 tax).
-        # Next 36,650 taxed at 15% (tax = (85000 - 48351) * 0.15 = 5497.35).
-        # Total tax = 5,497.35.
+        # Next 35,900 taxed at 15% (tax = 35900 * 0.15 = 5385.00).
+        # Total tax = 5,385.00.
         tax = calculate_retirement_withdrawal_tax(
             Decimal("100000"), account_2025, config_2025, is_capital_gains=True
         )
-        assert tax == Decimal("5497.35")
+        assert tax == Decimal("5385.00")
 
     def test_state_capital_gains_tax_calculators(self):
         """Verify California (progressive ordinary, no SDI, includes MHS) and Texas (0%) state capital gains tax calculators."""
@@ -652,16 +652,16 @@ class TestSimulateAccount:
         # California
         # Using 2024 config since CA tax brackets are configured for 2024.
         # Standard deduction = 5,363. Taxable gain = 20,000 - 5,363 = 14,637.
-        # First 10,412 taxed at 1% = 104.11 (due to floor/ceiling -1 gap).
+        # First 10,412 taxed at 1% = 104.12.
         # Next 4,225 taxed at 2% = 84.50.
-        # Total CA tax = 188.61.
+        # Total CA tax = 188.62.
         config_2024 = _make_config(year=2024)
         user_ca = Person(state_of_residence=State.CALIFORNIA, filing=Filing.INDIVIDUAL)
         calculator_ca = get_state_capital_gains_calculator(State.CALIFORNIA)
         ca_tax = calculator_ca.calculate_capital_gains_tax(
             Decimal("20000"), user_ca, config_2024
         )
-        assert ca_tax == Decimal("188.61")
+        assert ca_tax == Decimal("188.62")
 
     def test_get_state_capital_gains_calculator_warning(self, caplog):
         """Verify that requesting a state capital gains calculator for an unimplemented state logs a warning and falls back to ordinary state tax calculation."""
