@@ -16,7 +16,7 @@ from utils.globals import GlobalParameters
 
 
 def calculate_annual_income_tax(
-        user: Person, config: GlobalParameters) -> Decimal:
+        user: Person,      config: GlobalParameters) -> Decimal:
     return (
         calculate_annual_federal_income_tax(user, config)
         + calculate_annual_social_security_tax(user, config)
