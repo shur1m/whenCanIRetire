@@ -3,7 +3,7 @@ from decimal import Decimal
 from utils.enums import Filing, State
 from utils.parameters import Person
 from utils.globals import GlobalParameters, calculate_progressive_tax
-from calculate.state_tax import get_state_tax_calculator
+from calculate.state_tax_calculators import get_state_tax_calculator
 
 logger = logging.getLogger(__name__)
 

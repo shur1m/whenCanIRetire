@@ -30,10 +30,12 @@ import pytest
 from calculate.federal_tax import (
     calculate_annual_income_tax,
     calculate_annual_federal_income_tax,
-    calculate_annual_state_income_tax,
-    calculate_annual_state_payroll_tax,
     calculate_annual_social_security_tax,
     calculate_annual_medicare_tax,
+)
+from calculate.state_tax import (
+    calculate_annual_state_income_tax,
+    calculate_annual_state_payroll_tax,
 )
 from utils.globals import GlobalParameters
 from utils.parameters import Person

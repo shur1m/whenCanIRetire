@@ -3,7 +3,10 @@ import copy
 from utils.enums import Filing, State, Frequency
 from utils.parameters import Person
 from utils.globals import GlobalParameters, calculate_progressive_tax
-from calculate.state_tax import get_state_tax_calculator
+from calculate.state_tax import (
+    calculate_annual_state_income_tax,
+    calculate_annual_state_payroll_tax,
+)
 
 
 def calculate_annual_income_tax(user: Person, config: GlobalParameters) -> Decimal:
@@ -24,20 +27,6 @@ def calculate_annual_federal_income_tax(
         tax_brackets=config.get_fed_tax_brackets(user.filing),
         tax_deduction=config.get_fed_tax_deduction(user.filing),
     )
-
-
-def calculate_annual_state_income_tax(
-    user: Person, config: GlobalParameters
-) -> Decimal:
-    calculator = get_state_tax_calculator(user.state_of_residence)
-    return calculator.calculate_tax(user, config)
-
-
-def calculate_annual_state_payroll_tax(
-    user: Person, config: GlobalParameters
-) -> Decimal:
-    calculator = get_state_tax_calculator(user.state_of_residence)
-    return calculator.calculate_payroll_tax(user, config)
 
 
 def _calculate_annual_income_tax(
