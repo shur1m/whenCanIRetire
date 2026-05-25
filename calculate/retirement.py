@@ -141,15 +141,6 @@ def calculate_retirement_withdrawal_tax(
     else:
         # Ordinary state income tax
         state_tax = calculate_annual_state_income_tax(dummy_person, config)
-        # Exclude California SDI from retirement withdrawals (SDI only applies to wages)
-        if user.state_of_residence == State.CALIFORNIA:
-            state_schema = config.yearly_tax.StateTax.get(State.CALIFORNIA)
-            sdi_percent = (
-                state_schema.SDITaxPercent
-                if state_schema and state_schema.SDITaxPercent is not None
-                else Decimal("0.011")
-            )
-            state_tax = max(Decimal("0"), state_tax - sdi_percent * amount)
 
     return fed_tax + state_tax
 

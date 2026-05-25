@@ -31,6 +31,7 @@ from calculate.federal_tax import (
     calculate_annual_income_tax,
     calculate_annual_federal_income_tax,
     calculate_annual_state_income_tax,
+    calculate_annual_state_payroll_tax,
     calculate_annual_social_security_tax,
     calculate_annual_medicare_tax,
 )
@@ -337,21 +338,19 @@ class TestStateIncomeTax:
         result = calculate_annual_state_income_tax(person_ca_115k, config_2024)
         assert result > 0, "California resident should owe state income tax"
 
-    def test_california_includes_sdi(self, person_ca_115k, config_2024):
+    def test_california_payroll_tax_is_sdi(self, person_ca_115k, config_2024):
         """
-        California SDI = 1.1% of gross pre_tax_income.
+        California state payroll tax is SDI (1.1% of gross pre_tax_income in 2024).
         SDI = 0.011 * 115,000 = 1,265.00
-        The total state tax must be at least this much.
         """
-        sdi_floor = 0.011 * 115_000
-        result = calculate_annual_state_income_tax(person_ca_115k, config_2024)
-        assert (
-            result >= sdi_floor
-        ), f"CA state tax should include SDI (≥ {sdi_floor:.2f}), got {result:.2f}"
+        result = calculate_annual_state_payroll_tax(person_ca_115k, config_2024)
+        assert math.isclose(
+            result, 1265.00, abs_tol=0.01
+        ), f"Expected CA state payroll tax 1265.00, got {result:.2f}"
 
     def test_california_115k_state_tax_exact(self, person_ca_115k, config_2024):
         """
-        Pin the exact CA state tax for $115k individual, 2024.
+        Pin the exact CA state income tax for $115k individual, 2024.
 
         CA taxable income = 115,000 - 5,363 = 109,637
         Bracket math (individual):
@@ -362,13 +361,11 @@ class TestStateIncomeTax:
           8%   on (68,350-54,081)      = 14,269 * 0.08  = 1,141.52
           9.3% on (109,637-68,350)     = 41,287 * 0.093 = 3,839.69
           Bracket total = 6,848.88
-        SDI = 0.011 * 115,000 = 1,265.00
-        Total CA state tax = 6,848.88 + 1,265.00 ≈ 8,113.88
         """
         result = calculate_annual_state_income_tax(person_ca_115k, config_2024)
         assert math.isclose(
-            result, 8_113.88, abs_tol=1.0
-        ), f"Expected CA state tax ~8113.88, got {result:.2f}"
+            result, 6848.88, abs_tol=1.0
+        ), f"Expected CA state income tax ~6848.88, got {result:.2f}"
 
 
 # ===========================================================================

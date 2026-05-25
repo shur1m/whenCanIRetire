@@ -12,6 +12,7 @@ def calculate_annual_income_tax(user: Person, config: GlobalParameters) -> Decim
         + calculate_annual_social_security_tax(user, config)
         + calculate_annual_medicare_tax(user, config)
         + calculate_annual_state_income_tax(user, config)
+        + calculate_annual_state_payroll_tax(user, config)
     )
 
 
@@ -30,6 +31,13 @@ def calculate_annual_state_income_tax(
 ) -> Decimal:
     calculator = get_state_tax_calculator(user.state_of_residence)
     return calculator.calculate_tax(user, config)
+
+
+def calculate_annual_state_payroll_tax(
+    user: Person, config: GlobalParameters
+) -> Decimal:
+    calculator = get_state_tax_calculator(user.state_of_residence)
+    return calculator.calculate_payroll_tax(user, config)
 
 
 def _calculate_annual_income_tax(
