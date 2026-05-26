@@ -1,11 +1,10 @@
-from typing import Union
 from decimal import Decimal
 from calculate.federal_tax import calculate_annual_federal_income_tax
 from calculate.state_tax import (
     calculate_annual_state_income_tax,
     get_state_tax_calculator,
 )
-from utils.parameters import Person, Account, to_decimal
+from utils.parameters import Person, Account
 from utils.globals import GlobalParameters, calculate_progressive_tax
 
 
@@ -13,29 +12,6 @@ def simulate_account(
     account: Account, config: GlobalParameters
 ) -> tuple[list[int], list[Decimal]]:
     return account.simulate(config)
-
-
-def _adjust_for_inflation(
-    todays_dollars: Union[Decimal, float, int],
-    months: int,
-    config: GlobalParameters,
-) -> Decimal:
-    todays_dollars_dec = to_decimal(todays_dollars)
-    inflation_rate_dec = config.inflation_rate
-    inflation_multiplier = Decimal("1") + inflation_rate_dec
-    inflation_per_month = inflation_multiplier ** (Decimal("1") / Decimal("12"))
-    return todays_dollars_dec * (inflation_per_month**months)
-
-
-def _simulate_accumulation(
-    account: Account,
-    current_savings: Decimal,
-    graph_labels: list[int],
-    graph_savings_values: list[Decimal],
-) -> Decimal:
-    return account.simulate_accumulation(
-        current_savings, graph_labels, graph_savings_values
-    )
 
 
 def calculate_retirement_withdrawal_tax(
@@ -86,27 +62,3 @@ def calculate_retirement_withdrawal_tax(
         state_tax = calculate_annual_state_income_tax(dummy_person, config)
 
     return fed_tax + state_tax
-
-
-def _calculate_retirement_pre_tax_income(
-    post_tax_income: Decimal,
-    account: Account,
-    current_savings: Decimal,
-    config: GlobalParameters,
-    inflation_factor: Decimal = Decimal("1.0"),
-) -> Decimal:
-    return account.get_pre_tax_withdrawal(
-        post_tax_income, current_savings, config, inflation_factor
-    )
-
-
-def _simulate_retirement(
-    account: Account,
-    current_savings: Decimal,
-    graph_labels: list[int],
-    graph_savings_values: list[Decimal],
-    config: GlobalParameters,
-) -> None:
-    account.simulate_retirement(
-        current_savings, graph_labels, graph_savings_values, config
-    )

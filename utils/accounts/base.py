@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 
 def to_decimal(val: Optional[Union[Decimal, float, int, str]]) -> Decimal:
+    """Converts a value to a Decimal. Returns Decimal("0") if None."""
     if val is None:
         return Decimal("0")
     if isinstance(val, Decimal):
@@ -17,8 +18,32 @@ def to_decimal(val: Optional[Union[Decimal, float, int, str]]) -> Decimal:
     return Decimal(str(val))
 
 
+def _adjust_for_inflation(
+    todays_dollars: Union[Decimal, float, int],
+    months: int,
+    config: GlobalParameters,
+) -> Decimal:
+    """Adjusts a dollar value for inflation compounded monthly over a number of months.
+
+    Formula: todays_dollars * (1 + inflation_rate)**(months/12)
+    """
+    todays_dollars_dec = to_decimal(todays_dollars)
+    inflation_rate_dec = config.inflation_rate
+    inflation_multiplier = Decimal("1") + inflation_rate_dec
+    inflation_per_month = inflation_multiplier ** (Decimal("1") / Decimal("12"))
+    return todays_dollars_dec * (inflation_per_month**months)
+
+
 class Account:
+    """Base class representing a financial investment or retirement account.
+
+    Serves as a polymorphic base class and uses the Factory pattern in `__new__`
+    to dynamically return instances of subclasses (TraditionalAccount, RothAccount,
+    HsaAccount, BrokerageAccount) based on the account_type parameter.
+    """
+
     def __new__(cls, *args, **kwargs):
+        """Dynamic factory method to instantiate the correct subclass based on account_type."""
         if cls is Account:
             account_type = kwargs.get("account_type")
             if account_type is None and len(args) >= 12:
@@ -56,7 +81,7 @@ class Account:
         compound_type: MonthlyCompoundType = MonthlyCompoundType.ROOT,
         account_type: AccountType = AccountType.GENERIC,
     ) -> None:
-
+        """Initializes general parameters shared by all account types."""
         self.owner: Person = owner
         self.initial_savings: Decimal = to_decimal(initial_savings)
         self.current_savings: Decimal = self.initial_savings
@@ -76,12 +101,18 @@ class Account:
         self.account_type: AccountType = account_type
 
     def add_contribution(self, amount: Decimal) -> None:
-        pass
+        """Invoked during the accumulation phase to record a contribution.
+
+        Overridden in BrokerageAccount to increase the cost basis.
+        """
 
     def post_withdraw_update(
         self, withdrawal_pre_tax: Decimal, remaining_savings: Decimal
     ) -> None:
-        pass
+        """Invoked after a withdrawal is made to adjust account state.
+
+        Overridden in BrokerageAccount to reduce the cost basis proportionally.
+        """
 
     def get_pre_tax_withdrawal(
         self,
@@ -90,6 +121,11 @@ class Account:
         config: GlobalParameters,
         inflation_factor: Decimal,
     ) -> Decimal:
+        """Calculates the pre-tax monthly withdrawal required to meet a post-tax target.
+
+        Uses the Template Method pattern by invoking `calculate_withdrawal_tax`.
+        Default behavior (Roth, HSA) has 0% tax, so pre-tax withdrawal equals post-tax target.
+        """
         return post_tax_income
 
     def calculate_withdrawal_tax(
@@ -98,6 +134,11 @@ class Account:
         current_savings: Decimal,
         config: GlobalParameters,
     ) -> Decimal:
+        """Calculates and returns the annual real tax on a pre-tax withdrawal.
+
+        Part of the Template Method pattern for binary search.
+        Defaults to Decimal("0") (Roth and HSA). Overridden in Traditional and Brokerage.
+        """
         return Decimal("0")
 
     def _binary_search_pre_tax_withdrawal(
@@ -107,6 +148,11 @@ class Account:
         config: GlobalParameters,
         inflation_factor: Decimal,
     ) -> Decimal:
+        """Helper method to run a binary search to find the pre-tax monthly withdrawal.
+
+        Solves for: pre_tax_income - tax_monthly(pre_tax_income) == post_tax_income.
+        Calls `calculate_withdrawal_tax` polymorphically to compute the tax.
+        """
         left = post_tax_income
         right = post_tax_income * Decimal("5")
         pre_tax_income = right
@@ -138,6 +184,10 @@ class Account:
         config: GlobalParameters,
         inflation_factor: Decimal,
     ) -> tuple[Decimal, Decimal]:
+        """Performs a withdrawal from the account for a target net amount.
+
+        Updates account state and returns (withdrawal_pre_tax, remaining_savings).
+        """
         pre_tax_amount = self.get_pre_tax_withdrawal(
             net_amount, current_savings, config, inflation_factor
         )
@@ -152,6 +202,7 @@ class Account:
         return withdrawal_pre_tax, remaining_savings
 
     def _compound_monthly(self, current_savings: Decimal) -> Decimal:
+        """Helper to compound investment return monthly based on compound frequency/type."""
         if self.compound_frequency != Frequency.MONTHLY:
             return current_savings
 
@@ -166,6 +217,7 @@ class Account:
         return current_savings
 
     def _get_monthly_contribution(self, year: int, month: int) -> Decimal:
+        """Helper to compute the contribution for a given month, accounting for annual increase."""
         if self.regular_investment_frequency != Frequency.MONTHLY:
             return Decimal("0")
 
@@ -175,6 +227,7 @@ class Account:
         return self.regular_investment_dollar * (increase_factor ** (year * 12 + month))
 
     def _get_annual_contribution(self, year: int) -> Decimal:
+        """Helper to compute the contribution for a given year, accounting for annual increase."""
         if self.regular_investment_frequency != Frequency.ANNUALLY:
             return Decimal("0")
 
@@ -187,6 +240,10 @@ class Account:
         graph_labels: list[int],
         graph_savings_values: list[Decimal],
     ) -> Decimal:
+        """Simulates growth of the account during the accumulation (pre-retirement) phase.
+
+        Appends yearly data points to graph_labels and graph_savings_values.
+        """
         for year in range(self.owner.retirement_age - self.owner.current_age):
             # compounding yearly
             if self.compound_frequency == Frequency.ANNUALLY:
@@ -218,8 +275,10 @@ class Account:
         graph_savings_values: list[Decimal],
         config: GlobalParameters,
     ) -> None:
-        from calculate.retirement import _adjust_for_inflation
+        """Simulates drawdown of the account during the retirement phase.
 
+        Appends yearly data points to graph_labels and graph_savings_values.
+        """
         retirement_months = 0
         post_tax_annual_expense = self.annual_retirement_post_tax_expense
         post_tax_monthly_withdrawal = post_tax_annual_expense / Decimal("12")
@@ -277,6 +336,10 @@ class Account:
         self.current_savings = current_savings
 
     def simulate(self, config: GlobalParameters) -> tuple[list[int], list[Decimal]]:
+        """Orchestrates both accumulation and retirement simulation phases.
+
+        Returns (graph_labels, graph_savings_values).
+        """
         graph_labels: list[int] = []
         graph_savings_values: list[Decimal] = []
         self.current_savings = self.initial_savings
