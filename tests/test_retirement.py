@@ -567,7 +567,6 @@ class TestSimulateRetirement:
             account=account_trad,
             current_savings=Decimal("1000000"),
             config=config,
-            inflation_factor=Decimal("1.0"),
         )
 
         # Calculate pre-tax income at inflation_factor = 1.5 (inflated dollars)
@@ -599,7 +598,6 @@ class TestSimulateRetirement:
             account=account_generic,
             current_savings=Decimal("1000000"),
             config=config,
-            inflation_factor=Decimal("1.0"),
         )
 
         # Calculate pre-tax income at inflation_factor = 1.8 (inflated dollars)

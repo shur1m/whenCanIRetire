@@ -149,7 +149,7 @@ def _calculate_retirement_pre_tax_income(
     account: Account,
     current_savings: Decimal,
     config: GlobalParameters,
-    inflation_factor: Decimal,
+    inflation_factor: Decimal = Decimal("1.0"),
 ) -> Decimal:
     """Calculates the pre-tax monthly withdrawal required to meet a post-tax target.
 
