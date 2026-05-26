@@ -88,19 +88,6 @@ def get_state_tax_calculator(state: State | None) -> StateTaxCalculator:
     return STATE_TAX_CALCULATORS[state]
 
 
-def get_state_capital_gains_calculator(state: State | None) -> StateTaxCalculator:
-    if state is None:
-        return NoStateTaxCalculator()
-    if state not in STATE_TAX_CALCULATORS:
-        state_name = state.value if isinstance(state, State) else str(state)
-        logger.warning(
-            f"State capital gains calculator not implemented for {state_name}. "
-            f"Falling back to treating as ordinary state income tax."
-        )
-        return NoStateTaxCalculator()
-    return STATE_TAX_CALCULATORS[state]
-
-
 def calculate_annual_state_income_tax(
     user: Person, config: GlobalParameters
 ) -> Decimal:

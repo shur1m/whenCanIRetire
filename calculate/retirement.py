@@ -3,7 +3,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from calculate.federal_tax import calculate_annual_federal_income_tax
 from calculate.state_tax import (
     calculate_annual_state_income_tax,
-    get_state_capital_gains_calculator,
+    get_state_tax_calculator,
 )
 from utils.parameters import Person, Account, to_decimal
 from utils.enums import Frequency, MonthlyCompoundType, AccountType
@@ -135,7 +135,7 @@ def calculate_retirement_withdrawal_tax(
     # 2. State tax calculation
     if is_capital_gains:
         # State capital gains tax using the registered calculator for the state
-        calculator = get_state_capital_gains_calculator(user.state_of_residence)
+        calculator = get_state_tax_calculator(user.state_of_residence)
         state_tax = calculator.calculate_capital_gains_tax(amount, dummy_person, config)
     else:
         # Ordinary state income tax

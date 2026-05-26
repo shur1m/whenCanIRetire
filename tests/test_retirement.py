@@ -761,9 +761,9 @@ class TestSimulateAccount:
 
         # Texas
         user_tx = Person(state_of_residence=State.TEXAS)
-        from calculate.state_tax import get_state_capital_gains_calculator
+        from calculate.state_tax import get_state_tax_calculator
 
-        calculator_tx = get_state_capital_gains_calculator(State.TEXAS)
+        calculator_tx = get_state_tax_calculator(State.TEXAS)
         tx_tax = calculator_tx.calculate_capital_gains_tax(
             Decimal("100000"), user_tx, config_2025
         )
@@ -777,22 +777,22 @@ class TestSimulateAccount:
         # Total CA tax = 188.62.
         config_2024 = _make_config(year=2024)
         user_ca = Person(state_of_residence=State.CALIFORNIA, filing=Filing.INDIVIDUAL)
-        calculator_ca = get_state_capital_gains_calculator(State.CALIFORNIA)
+        calculator_ca = get_state_tax_calculator(State.CALIFORNIA)
         ca_tax = calculator_ca.calculate_capital_gains_tax(
             Decimal("20000"), user_ca, config_2024
         )
         assert ca_tax == Decimal("188.62")
 
-    def test_get_state_capital_gains_calculator_warning(self, caplog):
-        """Verify that requesting a state capital gains calculator for an unimplemented state logs a warning and falls back to ordinary state tax calculation."""
+    def test_get_state_tax_calculator_warning(self, caplog):
+        """Verify that requesting a state tax calculator for an unimplemented state logs a warning and falls back to NoStateTaxCalculator."""
         import logging
 
         # Using a dummy state name to trigger fallback
         unimplemented_state = "New York"
-        from calculate.state_tax import get_state_capital_gains_calculator
+        from calculate.state_tax import get_state_tax_calculator
 
         with caplog.at_level(logging.WARNING):
-            get_state_capital_gains_calculator(unimplemented_state)  # type: ignore
+            get_state_tax_calculator(unimplemented_state)  # type: ignore
             assert len(caplog.records) > 0
             assert "not implemented" in caplog.text
 
