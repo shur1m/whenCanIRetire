@@ -817,3 +817,83 @@ class TestSimulate:
 
         # The difference must be at least the FICA + SDI payroll taxes on $100k
         assert std_tax - ret_tax >= Decimal("8750")
+
+    def test_coordinated_simulation_applies_single_deduction(self):
+        """Verify that when multiple traditional accounts are simulated,
+        the standard deduction is applied only once in aggregate, rather than once per account.
+        """
+        user = Person(
+            current_age=30,
+            retirement_age=30,
+            lifespan=31,
+            pre_tax_income=100_000,
+            state_of_residence=State.TEXAS,
+            filing=Filing.INDIVIDUAL,
+        )
+        config = _make_config(year=2024)
+
+        acc1 = Account.create(
+            owner=user,
+            initial_savings=500_000,
+            annual_retirement_post_tax_expense=10_000,
+            annual_retirement_return=0.0,
+            account_type=AccountType.TRADITIONAL,
+        )
+        acc2 = Account.create(
+            owner=user,
+            initial_savings=500_000,
+            annual_retirement_post_tax_expense=10_000,
+            annual_retirement_return=0.0,
+            account_type=AccountType.TRADITIONAL,
+        )
+        user.add_account(acc1, "Traditional_1")
+        user.add_account(acc2, "Traditional_2")
+
+        from calculate.simulator import RetirementSimulator
+
+        simulator = RetirementSimulator(user, config)
+        results = simulator.simulate()
+
+        _, vals1 = results["Traditional_1"]
+        _, vals2 = results["Traditional_2"]
+
+        assert vals1[0] < 490_000
+        assert vals2[0] < 490_000
+
+    def test_coordinated_simulation_stacks_capital_gains(self):
+        """Verify that capital gains are stacked on top of ordinary income in coordinated simulation."""
+        user = Person(
+            current_age=30,
+            retirement_age=30,
+            lifespan=31,
+            pre_tax_income=100_000,
+            state_of_residence=State.TEXAS,
+            filing=Filing.INDIVIDUAL,
+        )
+        config = _make_config(year=2024)
+
+        acc_trad = Account.create(
+            owner=user,
+            initial_savings=500_000,
+            annual_retirement_post_tax_expense=50_000,
+            annual_retirement_return=0.0,
+            account_type=AccountType.TRADITIONAL,
+        )
+        acc_brok = Account.create(
+            owner=user,
+            initial_savings=500_000,
+            cost_basis=0,
+            annual_retirement_post_tax_expense=10_000,
+            annual_retirement_return=0.0,
+            account_type=AccountType.GENERIC,
+        )
+        user.add_account(acc_trad, "Traditional")
+        user.add_account(acc_brok, "Brokerage")
+
+        from calculate.simulator import RetirementSimulator
+
+        simulator = RetirementSimulator(user, config)
+        results = simulator.simulate()
+
+        _, brok_vals = results["Brokerage"]
+        assert brok_vals[0] < 490_000

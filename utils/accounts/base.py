@@ -344,17 +344,19 @@ class Account:
 
         Returns (graph_labels, graph_savings_values).
         """
-        graph_labels: list[int] = []
-        graph_savings_values: list[Decimal] = []
-        self.current_savings = self.initial_savings
+        from calculate.simulator import RetirementSimulator
 
-        savings_at_retirement = self.simulate_accumulation(
-            self.current_savings, graph_labels, graph_savings_values
-        )
-        self.simulate_retirement(
-            savings_at_retirement,
-            graph_labels,
-            graph_savings_values,
-            config,
-        )
-        return graph_labels, graph_savings_values
+        accounts_to_simulate: dict[str, Account] = self.owner.accounts
+        if not any(acc is self for acc in accounts_to_simulate.values()):
+            accounts_to_simulate = {"temp_account": self}
+
+        simulator = RetirementSimulator(self.owner, config, accounts_to_simulate)
+        results = simulator.simulate()
+
+        # Find our results
+        for name, acc in accounts_to_simulate.items():
+            if acc is self:
+                return results[name]
+
+        # Fallback (should never happen)
+        return [], []
