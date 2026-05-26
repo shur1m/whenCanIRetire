@@ -104,6 +104,36 @@ class Account:
         self.post_withdraw_update(withdrawal_pre_tax, remaining_savings)
         return withdrawal_pre_tax, remaining_savings
 
+    def _compound_monthly(self, current_savings: Decimal) -> Decimal:
+        if self.compound_frequency != Frequency.MONTHLY:
+            return current_savings
+
+        if self.compound_type == MonthlyCompoundType.DIVIDE:
+            rate = self.annual_investment_return / Decimal("12")
+            return current_savings * (Decimal("1") + rate)
+        elif self.compound_type == MonthlyCompoundType.ROOT:
+            rate_root = (Decimal("1") + self.annual_investment_return) ** (
+                Decimal("1") / Decimal("12")
+            )
+            return current_savings * rate_root
+        return current_savings
+
+    def _get_monthly_contribution(self, year: int, month: int) -> Decimal:
+        if self.regular_investment_frequency != Frequency.MONTHLY:
+            return Decimal("0")
+
+        increase_factor = (Decimal("1") + self.annual_investment_increase) ** (
+            Decimal("1") / Decimal("12")
+        )
+        return self.regular_investment_dollar * (increase_factor ** (year * 12 + month))
+
+    def _get_annual_contribution(self, year: int) -> Decimal:
+        if self.regular_investment_frequency != Frequency.ANNUALLY:
+            return Decimal("0")
+
+        increase_factor = (Decimal("1") + self.annual_investment_increase) ** year
+        return self.regular_investment_dollar * increase_factor
+
     def simulate_accumulation(
         self,
         current_savings: Decimal,
@@ -116,34 +146,15 @@ class Account:
                 current_savings *= Decimal("1") + self.annual_investment_return
 
             for month in range(12):
-                # compounding monthly
-                if self.compound_frequency == Frequency.MONTHLY:
-                    if self.compound_type == MonthlyCompoundType.DIVIDE:
-                        current_savings *= Decimal(
-                            "1"
-                        ) + self.annual_investment_return / Decimal("12")
-                    elif self.compound_type == MonthlyCompoundType.ROOT:
-                        current_savings *= (
-                            Decimal("1") + self.annual_investment_return
-                        ) ** (Decimal("1") / Decimal("12"))
-
-                # monthly addition to investment account
-                if self.regular_investment_frequency == Frequency.MONTHLY:
-                    contribution = self.regular_investment_dollar * (
-                        (
-                            (Decimal("1") + self.annual_investment_increase)
-                            ** (Decimal("1") / Decimal("12"))
-                        )
-                        ** (year * 12 + month)
-                    )
+                current_savings = self._compound_monthly(current_savings)
+                contribution = self._get_monthly_contribution(year, month)
+                if contribution > 0:
                     current_savings += contribution
                     self.add_contribution(contribution)
 
             # yearly addition to investment account
-            if self.regular_investment_frequency == Frequency.ANNUALLY:
-                contribution = self.regular_investment_dollar * (
-                    (Decimal("1") + self.annual_investment_increase) ** year
-                )
+            contribution = self._get_annual_contribution(year)
+            if contribution > 0:
                 current_savings += contribution
                 self.add_contribution(contribution)
 
