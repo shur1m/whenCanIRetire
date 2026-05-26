@@ -1,8 +1,10 @@
 from typing import Union
 from decimal import Decimal, ROUND_HALF_UP
 from calculate.federal_tax import calculate_annual_federal_income_tax
-from calculate.state_tax import calculate_annual_state_income_tax
-from calculate.state_capital_gains import get_state_capital_gains_calculator
+from calculate.state_tax import (
+    calculate_annual_state_income_tax,
+    get_state_capital_gains_calculator,
+)
 from utils.parameters import Person, Account, to_decimal
 from utils.enums import Frequency, MonthlyCompoundType, AccountType
 from utils.globals import GlobalParameters, calculate_progressive_tax

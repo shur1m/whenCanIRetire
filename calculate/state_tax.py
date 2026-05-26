@@ -1,7 +1,10 @@
+import logging
 from decimal import Decimal
 from utils.enums import State
 from utils.parameters import Person
 from utils.globals import GlobalParameters, calculate_progressive_tax
+
+logger = logging.getLogger(__name__)
 
 
 class StateTaxCalculator:
@@ -13,11 +16,30 @@ class StateTaxCalculator:
     def calculate_payroll_tax(self, user: Person, config: GlobalParameters) -> Decimal:
         return Decimal("0")
 
+    def calculate_capital_gains_tax(
+        self, capital_gains: Decimal, user: Person, config: GlobalParameters
+    ) -> Decimal:
+        """Default fallback: treat capital gains as ordinary state income."""
+        dummy_person = Person(
+            current_age=user.current_age,
+            retirement_age=user.retirement_age,
+            lifespan=user.lifespan,
+            pre_tax_income=capital_gains,
+            state_of_residence=user.state_of_residence,
+            filing=user.filing,
+        )
+        return self.calculate_tax(dummy_person, config)
+
 
 class NoStateTaxCalculator(StateTaxCalculator):
     """For states with no income tax (e.g., Texas, or if state_of_residence is None)."""
 
     def calculate_tax(self, user: Person, config: GlobalParameters) -> Decimal:
+        return Decimal("0")
+
+    def calculate_capital_gains_tax(
+        self, capital_gains: Decimal, user: Person, config: GlobalParameters
+    ) -> Decimal:
         return Decimal("0")
 
 
@@ -56,7 +78,27 @@ STATE_TAX_CALCULATORS: dict[State, StateTaxCalculator] = {
 def get_state_tax_calculator(state: State | None) -> StateTaxCalculator:
     if state is None:
         return NoStateTaxCalculator()
-    return STATE_TAX_CALCULATORS.get(state, NoStateTaxCalculator())
+    if state not in STATE_TAX_CALCULATORS:
+        state_name = state.value if isinstance(state, State) else str(state)
+        logger.warning(
+            f"State tax calculator not implemented for {state_name}. "
+            f"Falling back to treat as having no state taxes."
+        )
+        return NoStateTaxCalculator()
+    return STATE_TAX_CALCULATORS[state]
+
+
+def get_state_capital_gains_calculator(state: State | None) -> StateTaxCalculator:
+    if state is None:
+        return NoStateTaxCalculator()
+    if state not in STATE_TAX_CALCULATORS:
+        state_name = state.value if isinstance(state, State) else str(state)
+        logger.warning(
+            f"State capital gains calculator not implemented for {state_name}. "
+            f"Falling back to treating as ordinary state income tax."
+        )
+        return NoStateTaxCalculator()
+    return STATE_TAX_CALCULATORS[state]
 
 
 def calculate_annual_state_income_tax(

@@ -761,7 +761,7 @@ class TestSimulateAccount:
 
         # Texas
         user_tx = Person(state_of_residence=State.TEXAS)
-        from calculate.state_capital_gains import get_state_capital_gains_calculator
+        from calculate.state_tax import get_state_capital_gains_calculator
 
         calculator_tx = get_state_capital_gains_calculator(State.TEXAS)
         tx_tax = calculator_tx.calculate_capital_gains_tax(
@@ -789,7 +789,7 @@ class TestSimulateAccount:
 
         # Using a dummy state name to trigger fallback
         unimplemented_state = "New York"
-        from calculate.state_capital_gains import get_state_capital_gains_calculator
+        from calculate.state_tax import get_state_capital_gains_calculator
 
         with caplog.at_level(logging.WARNING):
             get_state_capital_gains_calculator(unimplemented_state)  # type: ignore
