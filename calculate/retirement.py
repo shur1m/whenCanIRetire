@@ -8,12 +8,6 @@ from utils.parameters import Person, Account
 from utils.globals import GlobalParameters, calculate_progressive_tax
 
 
-def simulate_account(
-    account: Account, config: GlobalParameters
-) -> tuple[list[int], list[Decimal]]:
-    return account.simulate(config)
-
-
 def calculate_retirement_withdrawal_tax(
     amount: Decimal,
     account: Account,

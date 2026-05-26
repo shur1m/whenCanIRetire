@@ -6,7 +6,7 @@ Covers:
   - _calculate_pre_tax_income (binary-search inverse of income tax)
   - _simulate_accumulation (monthly/annual compounding, monthly/annual contributions)
   - _simulate_retirement (withdrawal loop, inflation adjustment, compound in retirement)
-  - simulate_account (full end-to-end label/value shapes)
+  - simulate (full end-to-end label/value shapes)
 
 All expected values are computed analytically from the formulas in the source
 so that any refactor that changes the math will be detected.
@@ -16,9 +16,6 @@ import math
 import json
 from decimal import Decimal
 
-from calculate.retirement import (
-    simulate_account,
-)
 from utils.accounts.base import _adjust_for_inflation
 from utils.globals import GlobalParameters
 from utils.parameters import Person, Account
@@ -616,11 +613,11 @@ class TestSimulateRetirement:
 
 
 # ===========================================================================
-# simulate_account – end-to-end
+# simulate – end-to-end
 # ===========================================================================
 
 
-class TestSimulateAccount:
+class TestSimulate:
     """Full pipeline: accumulation + retirement."""
 
     def test_labels_cover_full_timeline(self):
@@ -634,7 +631,7 @@ class TestSimulateAccount:
             annual_retirement_return=0.05,
             account_type=AccountType.ROTH,
         )
-        labels, values = simulate_account(account, config)
+        labels, values = account.simulate(config)
         assert labels[0] == 30, "First label should be current age"
         assert labels[len(labels) - 1] >= 40, "Labels must extend into retirement"
 
@@ -651,7 +648,7 @@ class TestSimulateAccount:
             annual_investment_return=0.07,
             account_type=AccountType.ROTH,
         )
-        labels, values = simulate_account(account, config)
+        labels, values = account.simulate(config)
         # The max should be somewhere around retirement, not at the very end
         max_value = max(values)
         last_value = values[-1]
@@ -661,7 +658,7 @@ class TestSimulateAccount:
 
     def test_lengths_match(self):
         user, account, config = _make_person_and_account()
-        labels, values = simulate_account(account, config)
+        labels, values = account.simulate(config)
         assert len(labels) == len(values)
 
     def test_all_values_non_negative(self):
@@ -669,7 +666,7 @@ class TestSimulateAccount:
             account_type=AccountType.ROTH,
             annual_retirement_post_tax_expense=40_000,
         )
-        _, values = simulate_account(account, config)
+        _, values = account.simulate(config)
         # The very last value may be 0 (depleted), but never negative from the loop
         for i, v in enumerate(values[:-1]):
             assert v >= 0, f"Negative balance at index {i}: {v}"
@@ -702,7 +699,7 @@ class TestSimulateAccount:
             account_type=AccountType.ROTH,
             annual_retirement_post_tax_expense=0,
         )
-        labels, values = simulate_account(account, config)
+        labels, values = account.simulate(config)
         # The last value from the accumulation phase (index 9 = age 39)
         assert math.isclose(
             values[9], expected_at_retirement, rel_tol=1e-5
@@ -721,7 +718,7 @@ class TestSimulateAccount:
             annual_investment_increase=0.0,
             account_type=AccountType.GENERIC,
         )
-        simulate_account(account, config)
+        account.simulate(config)
         # Initial basis = 5000.
         # Contributions: 3 years * 12 months * 1000/month = 36000.
         # Expected basis = 41000.
