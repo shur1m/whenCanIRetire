@@ -2,54 +2,25 @@ from __future__ import annotations
 
 from typing import Optional, Union
 from decimal import Decimal
-from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State
+from utils.enums import Filing, Frequency, AccountType, State
+from utils.accounts import (
+    Account,
+    to_decimal,
+    TraditionalAccount,
+    RothAccount,
+    HsaAccount,
+    BrokerageAccount,
+)
 
-
-def to_decimal(val: Optional[Union[Decimal, float, int, str]]) -> Decimal:
-    if val is None:
-        return Decimal("0")
-    if isinstance(val, Decimal):
-        return val
-    return Decimal(str(val))
-
-
-class Account:
-    def __init__(
-        self,
-        owner: Person,
-        initial_savings: Union[Decimal, float, int] = 0,
-        cost_basis: Optional[Union[Decimal, float, int]] = None,
-        regular_investment_dollar: Union[Decimal, float, int] = 1666,
-        regular_investment_frequency: Frequency = Frequency.MONTHLY,
-        annual_investment_increase: Union[Decimal, float, int] = 0.0,
-        annual_investment_return: Union[Decimal, float, int] = 0.07,
-        annual_retirement_return: Union[Decimal, float, int] = 0.05,
-        annual_retirement_post_tax_expense: Union[Decimal, float, int] = 72_000,
-        compound_frequency: Frequency = Frequency.MONTHLY,
-        compound_type: MonthlyCompoundType = MonthlyCompoundType.ROOT,
-        account_type: AccountType = AccountType.GENERIC,
-    ) -> None:
-
-        self.owner: Person = owner
-        self.initial_savings: Decimal = to_decimal(initial_savings)
-        # TODO: figure what the cost_basis should be if it is not provided
-        self.cost_basis: Decimal = (
-            to_decimal(cost_basis) if cost_basis is not None else Decimal("0")
-        )
-        self.regular_investment_dollar: Decimal = to_decimal(regular_investment_dollar)
-        self.regular_investment_frequency: Frequency = regular_investment_frequency
-        self.annual_investment_increase: Decimal = to_decimal(
-            annual_investment_increase  # percentage, how much you will contribute more next year
-        )
-
-        self.annual_investment_return: Decimal = to_decimal(annual_investment_return)
-        self.annual_retirement_return: Decimal = to_decimal(annual_retirement_return)
-        self.annual_retirement_post_tax_expense: Decimal = to_decimal(
-            annual_retirement_post_tax_expense
-        )
-        self.compound_frequency: Frequency = compound_frequency
-        self.compound_type: MonthlyCompoundType = compound_type
-        self.account_type: AccountType = account_type
+__all__ = [
+    "Person",
+    "Account",
+    "to_decimal",
+    "TraditionalAccount",
+    "RothAccount",
+    "HsaAccount",
+    "BrokerageAccount",
+]
 
 
 class Person:

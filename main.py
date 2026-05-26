@@ -8,7 +8,6 @@ from calculate.aggregate import (
     calculate_income_distribution_data,
     calculate_retirement_deductions_excess,
 )
-from calculate.retirement import simulate_account
 from utils.parameters import Person
 from utils.parse_parameters import parse_parameters
 from utils.globals import GlobalParameters
@@ -23,7 +22,7 @@ def generate_investment_growth_graph(user: Person, config: GlobalParameters, ax:
     total_savings_graph_values: list[Decimal] = []
 
     for account_name, account in user.accounts.items():
-        graph_labels, graph_savings_values = simulate_account(account, config)
+        graph_labels, graph_savings_values = account.simulate(config)
         float_savings_values = [float(v) for v in graph_savings_values]
         ax.plot(graph_labels, float_savings_values, label=account_name)
 

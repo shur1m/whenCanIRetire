@@ -6,7 +6,7 @@ Covers:
   - _calculate_pre_tax_income (binary-search inverse of income tax)
   - _simulate_accumulation (monthly/annual compounding, monthly/annual contributions)
   - _simulate_retirement (withdrawal loop, inflation adjustment, compound in retirement)
-  - simulate_account (full end-to-end label/value shapes)
+  - simulate (full end-to-end label/value shapes)
 
 All expected values are computed analytically from the formulas in the source
 so that any refactor that changes the math will be detected.
@@ -16,12 +16,7 @@ import math
 import json
 from decimal import Decimal
 
-from calculate.retirement import (
-    simulate_account,
-    _adjust_for_inflation,
-    _simulate_accumulation,
-    _simulate_retirement,
-)
+from utils.accounts.base import _adjust_for_inflation
 from utils.globals import GlobalParameters
 from utils.parameters import Person, Account
 from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State
@@ -159,7 +154,7 @@ class TestSimulateAccumulationMonthly:
         user, account, config = _make_person_and_account(**kwargs)
         labels = []
         values = []
-        _simulate_accumulation(account, account.initial_savings, labels, values)
+        account.simulate_accumulation(account.initial_savings, labels, values)
         return labels, values
 
     def test_output_length_matches_accumulation_years(self):
@@ -366,7 +361,7 @@ class TestSimulateRetirement:
         )
         labels = []
         values = []
-        _simulate_retirement(account, initial_savings, labels, values, config)
+        account.simulate_retirement(initial_savings, labels, values, config)
         return labels, values
 
     def test_runs_out_within_first_year_appends_zero(self):
@@ -490,7 +485,7 @@ class TestSimulateRetirement:
         )
         labels = []
         values = []
-        _simulate_retirement(account, Decimal("120000"), labels, values, config)
+        account.simulate_retirement(Decimal("120000"), labels, values, config)
         # After 1 year (12 months) the balance should be 120,000 - 12,000 = 108,000
         assert math.isclose(
             values[0], 108_000.0, abs_tol=0.01
@@ -520,6 +515,8 @@ class TestSimulateRetirement:
         )
         config = _make_config(2024)
         config.inflation_rate = Decimal("0.0")
+        from utils.parameters import BrokerageAccount
+
         account = Account(
             owner=user,
             initial_savings=100_000,
@@ -528,10 +525,11 @@ class TestSimulateRetirement:
             compound_frequency=Frequency.MONTHLY,
             account_type=AccountType.GENERIC,
         )
+        assert isinstance(account, BrokerageAccount)
         account.cost_basis = Decimal("150000")
         labels = []
         values = []
-        _simulate_retirement(account, Decimal("100000"), labels, values, config)
+        account.simulate_retirement(Decimal("100000"), labels, values, config)
         assert math.isclose(
             float(account.cost_basis), 132_000.0, abs_tol=1.0
         ), f"Expected cost basis of 132000.00 after 12 months, got {account.cost_basis:.2f}"
@@ -542,8 +540,6 @@ class TestSimulateRetirement:
         The pre-tax monthly income required for a target post-tax monthly income must scale
         proportionally with the inflation factor.
         """
-        from calculate.retirement import _calculate_retirement_pre_tax_income
-
         user = Person(
             current_age=30,
             retirement_age=40,
@@ -562,17 +558,16 @@ class TestSimulateRetirement:
         )
 
         # Calculate pre-tax income at inflation_factor = 1.0 (real dollars)
-        pre_tax_real = _calculate_retirement_pre_tax_income(
+        pre_tax_real = account_trad.get_pre_tax_withdrawal(
             post_tax_income=Decimal("5000"),
-            account=account_trad,
             current_savings=Decimal("1000000"),
             config=config,
+            inflation_factor=Decimal("1.0"),
         )
 
         # Calculate pre-tax income at inflation_factor = 1.5 (inflated dollars)
-        pre_tax_inflated = _calculate_retirement_pre_tax_income(
+        pre_tax_inflated = account_trad.get_pre_tax_withdrawal(
             post_tax_income=Decimal("5000") * Decimal("1.5"),
-            account=account_trad,
             current_savings=Decimal("1000000"),
             config=config,
             inflation_factor=Decimal("1.5"),
@@ -584,26 +579,28 @@ class TestSimulateRetirement:
         ), f"Expected progressive pre-tax inflated to be {expected_inflated}, got {pre_tax_inflated}"
 
         # Test GENERIC account (capital gains tax)
+        from utils.parameters import BrokerageAccount
+
         account_generic = Account(
             owner=user,
             initial_savings=1_000_000,
             annual_retirement_post_tax_expense=60_000,
             account_type=AccountType.GENERIC,
         )
+        assert isinstance(account_generic, BrokerageAccount)
         account_generic.cost_basis = Decimal("400000")  # gain ratio is 0.6
 
         # Calculate pre-tax income at inflation_factor = 1.0 (real dollars)
-        pre_tax_real_gen = _calculate_retirement_pre_tax_income(
+        pre_tax_real_gen = account_generic.get_pre_tax_withdrawal(
             post_tax_income=Decimal("5000"),
-            account=account_generic,
             current_savings=Decimal("1000000"),
             config=config,
+            inflation_factor=Decimal("1.0"),
         )
 
         # Calculate pre-tax income at inflation_factor = 1.8 (inflated dollars)
-        pre_tax_inflated_gen = _calculate_retirement_pre_tax_income(
+        pre_tax_inflated_gen = account_generic.get_pre_tax_withdrawal(
             post_tax_income=Decimal("5000") * Decimal("1.8"),
-            account=account_generic,
             current_savings=Decimal("1000000"),
             config=config,
             inflation_factor=Decimal("1.8"),
@@ -616,11 +613,11 @@ class TestSimulateRetirement:
 
 
 # ===========================================================================
-# simulate_account – end-to-end
+# simulate – end-to-end
 # ===========================================================================
 
 
-class TestSimulateAccount:
+class TestSimulate:
     """Full pipeline: accumulation + retirement."""
 
     def test_labels_cover_full_timeline(self):
@@ -634,7 +631,7 @@ class TestSimulateAccount:
             annual_retirement_return=0.05,
             account_type=AccountType.ROTH,
         )
-        labels, values = simulate_account(account, config)
+        labels, values = account.simulate(config)
         assert labels[0] == 30, "First label should be current age"
         assert labels[len(labels) - 1] >= 40, "Labels must extend into retirement"
 
@@ -651,7 +648,7 @@ class TestSimulateAccount:
             annual_investment_return=0.07,
             account_type=AccountType.ROTH,
         )
-        labels, values = simulate_account(account, config)
+        labels, values = account.simulate(config)
         # The max should be somewhere around retirement, not at the very end
         max_value = max(values)
         last_value = values[-1]
@@ -661,7 +658,7 @@ class TestSimulateAccount:
 
     def test_lengths_match(self):
         user, account, config = _make_person_and_account()
-        labels, values = simulate_account(account, config)
+        labels, values = account.simulate(config)
         assert len(labels) == len(values)
 
     def test_all_values_non_negative(self):
@@ -669,7 +666,7 @@ class TestSimulateAccount:
             account_type=AccountType.ROTH,
             annual_retirement_post_tax_expense=40_000,
         )
-        _, values = simulate_account(account, config)
+        _, values = account.simulate(config)
         # The very last value may be 0 (depleted), but never negative from the loop
         for i, v in enumerate(values[:-1]):
             assert v >= 0, f"Negative balance at index {i}: {v}"
@@ -702,7 +699,7 @@ class TestSimulateAccount:
             account_type=AccountType.ROTH,
             annual_retirement_post_tax_expense=0,
         )
-        labels, values = simulate_account(account, config)
+        labels, values = account.simulate(config)
         # The last value from the accumulation phase (index 9 = age 39)
         assert math.isclose(
             values[9], expected_at_retirement, rel_tol=1e-5
@@ -721,10 +718,13 @@ class TestSimulateAccount:
             annual_investment_increase=0.0,
             account_type=AccountType.GENERIC,
         )
-        simulate_account(account, config)
+        account.simulate(config)
         # Initial basis = 5000.
         # Contributions: 3 years * 12 months * 1000/month = 36000.
         # Expected basis = 41000.
+        from utils.parameters import BrokerageAccount
+
+        assert isinstance(account, BrokerageAccount)
         assert account.cost_basis == Decimal("41000")
 
     def test_federal_capital_gains_brackets_2025_and_2026(self):
