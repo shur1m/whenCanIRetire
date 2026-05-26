@@ -162,7 +162,7 @@ class TestAddAccount:
     def test_wrong_owner_raises_value_error(self):
         user1 = Person(pre_tax_income=100_000)
         user2 = Person(pre_tax_income=80_000)
-        account = Account(owner=user1)
+        account = Account.create(owner=user1)
         with pytest.raises(ValueError, match="owner"):
             user2.add_account(account)
 

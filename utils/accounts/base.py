@@ -42,29 +42,28 @@ class Account:
     HsaAccount, BrokerageAccount) based on the account_type parameter.
     """
 
-    def __new__(cls, *args, **kwargs):
+    @classmethod
+    def create(cls, *args, **kwargs) -> Account:
         """Dynamic factory method to instantiate the correct subclass based on account_type."""
-        if cls is Account:
-            account_type = kwargs.get("account_type")
-            if account_type is None and len(args) >= 12:
-                account_type = args[11]
-            if account_type is None:
-                account_type = AccountType.GENERIC
+        account_type = kwargs.get("account_type")
+        if account_type is None and len(args) >= 12:
+            account_type = args[11]
+        if account_type is None:
+            account_type = AccountType.GENERIC
 
-            from utils.accounts.traditional import TraditionalAccount
-            from utils.accounts.roth import RothAccount
-            from utils.accounts.hsa import HsaAccount
-            from utils.accounts.brokerage import BrokerageAccount
+        from utils.accounts.traditional import TraditionalAccount
+        from utils.accounts.roth import RothAccount
+        from utils.accounts.hsa import HsaAccount
+        from utils.accounts.brokerage import BrokerageAccount
 
-            if account_type == AccountType.TRADITIONAL:
-                return object.__new__(TraditionalAccount)
-            elif account_type == AccountType.ROTH:
-                return object.__new__(RothAccount)
-            elif account_type == AccountType.HSA:
-                return object.__new__(HsaAccount)
-            else:
-                return object.__new__(BrokerageAccount)
-        return object.__new__(cls)
+        if account_type == AccountType.TRADITIONAL:
+            return TraditionalAccount(*args, **kwargs)
+        elif account_type == AccountType.ROTH:
+            return RothAccount(*args, **kwargs)
+        elif account_type == AccountType.HSA:
+            return HsaAccount(*args, **kwargs)
+        else:
+            return BrokerageAccount(*args, **kwargs)
 
     def __init__(
         self,

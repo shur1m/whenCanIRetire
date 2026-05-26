@@ -65,7 +65,7 @@ def _make_person_and_account(
         state_of_residence=state_of_residence,
     )
     config = _make_config(2024)
-    account = Account(
+    account = Account.create(
         owner=user,
         initial_savings=initial_savings,
         cost_basis=cost_basis,
@@ -351,7 +351,7 @@ class TestSimulateRetirement:
             state_of_residence=State.TEXAS,
         )
         config = _make_config(2024)
-        account = Account(
+        account = Account.create(
             owner=user,
             initial_savings=initial_savings,
             annual_retirement_post_tax_expense=annual_expense,
@@ -475,7 +475,7 @@ class TestSimulateRetirement:
         )
         config = _make_config(2024)
         config.inflation_rate = Decimal("0.0")
-        account = Account(
+        account = Account.create(
             owner=user,
             initial_savings=120_000,
             annual_retirement_post_tax_expense=12_000,  # $1,000/month
@@ -517,7 +517,7 @@ class TestSimulateRetirement:
         config.inflation_rate = Decimal("0.0")
         from utils.parameters import BrokerageAccount
 
-        account = Account(
+        account = Account.create(
             owner=user,
             initial_savings=100_000,
             annual_retirement_post_tax_expense=12_000,
@@ -550,7 +550,7 @@ class TestSimulateRetirement:
         config = _make_config(2024)
 
         # Test TRADITIONAL account (progressive ordinary income tax)
-        account_trad = Account(
+        account_trad = Account.create(
             owner=user,
             initial_savings=1_000_000,
             annual_retirement_post_tax_expense=60_000,
@@ -581,7 +581,7 @@ class TestSimulateRetirement:
         # Test GENERIC account (capital gains tax)
         from utils.parameters import BrokerageAccount
 
-        account_generic = Account(
+        account_generic = Account.create(
             owner=user,
             initial_savings=1_000_000,
             annual_retirement_post_tax_expense=60_000,
@@ -731,7 +731,7 @@ class TestSimulate:
         """Verify capital gains calculations using the new 2025 and 2026 LTCG brackets."""
         config_2025 = _make_config(year=2025)
         user_2025 = Person(filing=Filing.INDIVIDUAL, state_of_residence=State.TEXAS)
-        account_2025 = Account(owner=user_2025, account_type=AccountType.GENERIC)
+        account_2025 = Account.create(owner=user_2025, account_type=AccountType.GENERIC)
 
         # Under 2025 Single: 0% up to 48,350. Standard deduction is 15,750.
         # Taxable gain = 60,000 - 15,750 = 44,250.
@@ -798,7 +798,9 @@ class TestSimulate:
         """Verify that FICA and SDI are excluded in retirement withdrawals."""
         config_2024 = _make_config(year=2024)
         user_ca = Person(state_of_residence=State.CALIFORNIA, filing=Filing.INDIVIDUAL)
-        account_trad = Account(owner=user_ca, account_type=AccountType.TRADITIONAL)
+        account_trad = Account.create(
+            owner=user_ca, account_type=AccountType.TRADITIONAL
+        )
 
         # Calculate retirement withdrawal tax for 100,000 pre-tax
         from calculate.retirement import calculate_retirement_withdrawal_tax
