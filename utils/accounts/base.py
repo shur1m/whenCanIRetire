@@ -244,10 +244,6 @@ class Account:
         Appends yearly data points to graph_labels and graph_savings_values.
         """
         for year in range(self.owner.retirement_age - self.owner.current_age):
-            # compounding yearly
-            if self.compound_frequency == Frequency.ANNUALLY:
-                current_savings *= Decimal("1") + self.annual_investment_return
-
             for month in range(12):
                 current_savings = self._compound_monthly(current_savings)
                 contribution = self._get_monthly_contribution(year, month)
@@ -260,6 +256,10 @@ class Account:
             if contribution > 0:
                 current_savings += contribution
                 self.add_contribution(contribution)
+
+            # compounding yearly
+            if self.compound_frequency == Frequency.ANNUALLY:
+                current_savings *= Decimal("1") + self.annual_investment_return
 
             graph_labels.append(self.owner.current_age + year)
             graph_savings_values.append(current_savings)
@@ -321,7 +321,7 @@ class Account:
                     current_savings *= rate_root
             elif (
                 self.compound_frequency == Frequency.ANNUALLY
-                and retirement_months % 12 == 0
+                and (retirement_months + 1) % 12 == 0
             ):
                 current_savings *= Decimal("1") + self.annual_retirement_return
 
