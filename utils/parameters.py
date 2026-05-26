@@ -84,6 +84,45 @@ class Account:
     ) -> Decimal:
         return post_tax_income
 
+    def calculate_withdrawal_tax(
+        self,
+        pre_tax_annual_real: Decimal,
+        current_savings: Decimal,
+        config: GlobalParameters,
+    ) -> Decimal:
+        return Decimal("0")
+
+    def _binary_search_pre_tax_withdrawal(
+        self,
+        post_tax_income: Decimal,
+        current_savings: Decimal,
+        config: GlobalParameters,
+        inflation_factor: Decimal,
+    ) -> Decimal:
+        left = post_tax_income
+        right = post_tax_income * Decimal("5")
+        pre_tax_income = right
+
+        while abs(right - left) > Decimal("0.01"):
+            pre_tax_income = left + (right - left) / Decimal("2")
+            pre_tax_annual = pre_tax_income * Decimal("12")
+            pre_tax_annual_real = pre_tax_annual / inflation_factor
+
+            tax_annual_real = self.calculate_withdrawal_tax(
+                pre_tax_annual_real, current_savings, config
+            )
+
+            tax_annual = tax_annual_real * inflation_factor
+            tax_monthly = tax_annual / Decimal("12")
+            net_monthly = pre_tax_income - tax_monthly
+
+            if net_monthly > post_tax_income:
+                right = pre_tax_income
+            else:
+                left = pre_tax_income
+
+        return pre_tax_income.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
     def withdraw(
         self,
         net_amount: Decimal,
@@ -278,6 +317,18 @@ class TraditionalAccount(Account):
             account_type=account_type,
         )
 
+    def calculate_withdrawal_tax(
+        self,
+        pre_tax_annual_real: Decimal,
+        current_savings: Decimal,
+        config: GlobalParameters,
+    ) -> Decimal:
+        from calculate.retirement import calculate_retirement_withdrawal_tax
+
+        return calculate_retirement_withdrawal_tax(
+            pre_tax_annual_real, self, config, is_capital_gains=False
+        )
+
     def get_pre_tax_withdrawal(
         self,
         post_tax_income: Decimal,
@@ -285,31 +336,9 @@ class TraditionalAccount(Account):
         config: GlobalParameters,
         inflation_factor: Decimal,
     ) -> Decimal:
-        from calculate.retirement import calculate_retirement_withdrawal_tax
-
-        left = post_tax_income
-        right = post_tax_income * Decimal("5")
-        pre_tax_income = right
-
-        while abs(right - left) > Decimal("0.01"):
-            pre_tax_income = left + (right - left) / Decimal("2")
-            pre_tax_annual = pre_tax_income * Decimal("12")
-            pre_tax_annual_real = pre_tax_annual / inflation_factor
-
-            tax_annual_real = calculate_retirement_withdrawal_tax(
-                pre_tax_annual_real, self, config, is_capital_gains=False
-            )
-
-            tax_annual = tax_annual_real * inflation_factor
-            tax_monthly = tax_annual / Decimal("12")
-            net_monthly = pre_tax_income - tax_monthly
-
-            if net_monthly > post_tax_income:
-                right = pre_tax_income
-            else:
-                left = pre_tax_income
-
-        return pre_tax_income.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        return self._binary_search_pre_tax_withdrawal(
+            post_tax_income, current_savings, config, inflation_factor
+        )
 
 
 class RothAccount(Account):
@@ -428,6 +457,25 @@ class BrokerageAccount(Account):
         else:
             self.cost_basis = Decimal("0")
 
+    def calculate_withdrawal_tax(
+        self,
+        pre_tax_annual_real: Decimal,
+        current_savings: Decimal,
+        config: GlobalParameters,
+    ) -> Decimal:
+        from calculate.retirement import calculate_retirement_withdrawal_tax
+
+        gain_ratio = Decimal("0")
+        if current_savings > 0:
+            gain_ratio = max(
+                Decimal("0"),
+                (current_savings - self.cost_basis) / current_savings,
+            )
+        gains_annual_real = pre_tax_annual_real * gain_ratio
+        return calculate_retirement_withdrawal_tax(
+            gains_annual_real, self, config, is_capital_gains=True
+        )
+
     def get_pre_tax_withdrawal(
         self,
         post_tax_income: Decimal,
@@ -435,38 +483,9 @@ class BrokerageAccount(Account):
         config: GlobalParameters,
         inflation_factor: Decimal,
     ) -> Decimal:
-        from calculate.retirement import calculate_retirement_withdrawal_tax
-
-        left = post_tax_income
-        right = post_tax_income * Decimal("5")
-        pre_tax_income = right
-
-        while abs(right - left) > Decimal("0.01"):
-            pre_tax_income = left + (right - left) / Decimal("2")
-            pre_tax_annual = pre_tax_income * Decimal("12")
-            pre_tax_annual_real = pre_tax_annual / inflation_factor
-
-            gain_ratio = Decimal("0")
-            if current_savings > 0:
-                gain_ratio = max(
-                    Decimal("0"),
-                    (current_savings - self.cost_basis) / current_savings,
-                )
-            gains_annual_real = pre_tax_annual_real * gain_ratio
-            tax_annual_real = calculate_retirement_withdrawal_tax(
-                gains_annual_real, self, config, is_capital_gains=True
-            )
-
-            tax_annual = tax_annual_real * inflation_factor
-            tax_monthly = tax_annual / Decimal("12")
-            net_monthly = pre_tax_income - tax_monthly
-
-            if net_monthly > post_tax_income:
-                right = pre_tax_income
-            else:
-                left = pre_tax_income
-
-        return pre_tax_income.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        return self._binary_search_pre_tax_withdrawal(
+            post_tax_income, current_savings, config, inflation_factor
+        )
 
 
 class Person:
