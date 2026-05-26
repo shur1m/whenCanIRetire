@@ -1,0 +1,66 @@
+from __future__ import annotations
+
+from typing import Optional, Union, TYPE_CHECKING
+from decimal import Decimal
+from utils.enums import Frequency, MonthlyCompoundType, AccountType
+from utils.accounts.base import Account
+
+if TYPE_CHECKING:
+    from utils.parameters import Person
+    from utils.globals import GlobalParameters
+
+
+class TraditionalAccount(Account):
+    def __init__(
+        self,
+        owner: Person,
+        initial_savings: Union[Decimal, float, int] = 0,
+        cost_basis: Optional[Union[Decimal, float, int]] = None,
+        regular_investment_dollar: Union[Decimal, float, int] = 1666,
+        regular_investment_frequency: Frequency = Frequency.MONTHLY,
+        annual_investment_increase: Union[Decimal, float, int] = 0.0,
+        annual_investment_return: Union[Decimal, float, int] = 0.07,
+        annual_retirement_return: Union[Decimal, float, int] = 0.05,
+        annual_retirement_post_tax_expense: Union[Decimal, float, int] = 72_000,
+        compound_frequency: Frequency = Frequency.MONTHLY,
+        compound_type: MonthlyCompoundType = MonthlyCompoundType.ROOT,
+        account_type: AccountType = AccountType.TRADITIONAL,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            owner=owner,
+            initial_savings=initial_savings,
+            cost_basis=cost_basis,
+            regular_investment_dollar=regular_investment_dollar,
+            regular_investment_frequency=regular_investment_frequency,
+            annual_investment_increase=annual_investment_increase,
+            annual_investment_return=annual_investment_return,
+            annual_retirement_return=annual_retirement_return,
+            annual_retirement_post_tax_expense=annual_retirement_post_tax_expense,
+            compound_frequency=compound_frequency,
+            compound_type=compound_type,
+            account_type=account_type,
+        )
+
+    def calculate_withdrawal_tax(
+        self,
+        pre_tax_annual_real: Decimal,
+        current_savings: Decimal,
+        config: GlobalParameters,
+    ) -> Decimal:
+        from calculate.retirement import calculate_retirement_withdrawal_tax
+
+        return calculate_retirement_withdrawal_tax(
+            pre_tax_annual_real, self, config, is_capital_gains=False
+        )
+
+    def get_pre_tax_withdrawal(
+        self,
+        post_tax_income: Decimal,
+        current_savings: Decimal,
+        config: GlobalParameters,
+        inflation_factor: Decimal,
+    ) -> Decimal:
+        return self._binary_search_pre_tax_withdrawal(
+            post_tax_income, current_savings, config, inflation_factor
+        )
