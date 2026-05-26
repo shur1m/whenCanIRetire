@@ -311,9 +311,14 @@ class Account:
             current_savings = remaining_savings
 
             if self.compound_frequency == Frequency.MONTHLY:
-                current_savings *= (Decimal("1") + self.annual_retirement_return) ** (
-                    Decimal("1") / Decimal("12")
-                )
+                if self.compound_type == MonthlyCompoundType.DIVIDE:
+                    rate = self.annual_retirement_return / Decimal("12")
+                    current_savings *= Decimal("1") + rate
+                elif self.compound_type == MonthlyCompoundType.ROOT:
+                    rate_root = (Decimal("1") + self.annual_retirement_return) ** (
+                        Decimal("1") / Decimal("12")
+                    )
+                    current_savings *= rate_root
             elif (
                 self.compound_frequency == Frequency.ANNUALLY
                 and retirement_months % 12 == 0
