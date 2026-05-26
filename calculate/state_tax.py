@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 class StateTaxCalculator:
     """Base class for state-specific tax calculators."""
 
-    def calculate_tax(self, user: Person, config: GlobalParameters) -> Decimal:
+    def calculate_income_tax(self, user: Person, config: GlobalParameters) -> Decimal:
         raise NotImplementedError
 
     def calculate_payroll_tax(self, user: Person, config: GlobalParameters) -> Decimal:
@@ -28,13 +28,13 @@ class StateTaxCalculator:
             state_of_residence=user.state_of_residence,
             filing=user.filing,
         )
-        return self.calculate_tax(dummy_person, config)
+        return self.calculate_income_tax(dummy_person, config)
 
 
 class NoStateTaxCalculator(StateTaxCalculator):
     """For states with no income tax (e.g., Texas, or if state_of_residence is None)."""
 
-    def calculate_tax(self, user: Person, config: GlobalParameters) -> Decimal:
+    def calculate_income_tax(self, user: Person, config: GlobalParameters) -> Decimal:
         return Decimal("0")
 
     def calculate_capital_gains_tax(
@@ -46,7 +46,7 @@ class NoStateTaxCalculator(StateTaxCalculator):
 class CaliforniaTaxCalculator(StateTaxCalculator):
     """California state tax calculator including SDI and Mental Health Services taxes."""
 
-    def calculate_tax(self, user: Person, config: GlobalParameters) -> Decimal:
+    def calculate_income_tax(self, user: Person, config: GlobalParameters) -> Decimal:
         tax_deduction = config.get_state_tax_deduction(State.CALIFORNIA, user.filing)
 
         # Bracket-based state income tax
@@ -92,7 +92,7 @@ def calculate_annual_state_income_tax(
     user: Person, config: GlobalParameters
 ) -> Decimal:
     calculator = get_state_tax_calculator(user.state_of_residence)
-    return calculator.calculate_tax(user, config)
+    return calculator.calculate_income_tax(user, config)
 
 
 def calculate_annual_state_payroll_tax(
