@@ -520,6 +520,8 @@ class TestSimulateRetirement:
         )
         config = _make_config(2024)
         config.inflation_rate = Decimal("0.0")
+        from utils.parameters import BrokerageAccount
+
         account = Account(
             owner=user,
             initial_savings=100_000,
@@ -528,6 +530,7 @@ class TestSimulateRetirement:
             compound_frequency=Frequency.MONTHLY,
             account_type=AccountType.GENERIC,
         )
+        assert isinstance(account, BrokerageAccount)
         account.cost_basis = Decimal("150000")
         labels = []
         values = []
@@ -584,12 +587,15 @@ class TestSimulateRetirement:
         ), f"Expected progressive pre-tax inflated to be {expected_inflated}, got {pre_tax_inflated}"
 
         # Test GENERIC account (capital gains tax)
+        from utils.parameters import BrokerageAccount
+
         account_generic = Account(
             owner=user,
             initial_savings=1_000_000,
             annual_retirement_post_tax_expense=60_000,
             account_type=AccountType.GENERIC,
         )
+        assert isinstance(account_generic, BrokerageAccount)
         account_generic.cost_basis = Decimal("400000")  # gain ratio is 0.6
 
         # Calculate pre-tax income at inflation_factor = 1.0 (real dollars)
@@ -725,6 +731,9 @@ class TestSimulateAccount:
         # Initial basis = 5000.
         # Contributions: 3 years * 12 months * 1000/month = 36000.
         # Expected basis = 41000.
+        from utils.parameters import BrokerageAccount
+
+        assert isinstance(account, BrokerageAccount)
         assert account.cost_basis == Decimal("41000")
 
     def test_federal_capital_gains_brackets_2025_and_2026(self):
