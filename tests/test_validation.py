@@ -93,3 +93,8 @@ def test_missing_state_tax_raises_value_error(tax_data):
         ValueError, match="State tax deduction configuration is missing"
     ):
         config_2026.get_state_tax_deduction(State.CALIFORNIA, user.filing)
+
+    with pytest.raises(ValueError, match="State tax configuration is missing"):
+        config_2026.calculate_state_surcharges(
+            State.CALIFORNIA, "ordinary", Decimal("100000")
+        )

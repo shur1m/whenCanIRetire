@@ -1,8 +1,10 @@
 from typing import Union
 from decimal import Decimal, ROUND_HALF_UP
 from calculate.federal_tax import calculate_annual_federal_income_tax
-from calculate.state_tax import calculate_annual_state_income_tax
-from calculate.state_capital_gains import get_state_capital_gains_calculator
+from calculate.state_tax import (
+    calculate_annual_state_income_tax,
+    get_state_tax_calculator,
+)
 from utils.parameters import Person, Account, to_decimal
 from utils.enums import Frequency, MonthlyCompoundType, AccountType
 from utils.globals import GlobalParameters, calculate_progressive_tax
@@ -133,7 +135,7 @@ def calculate_retirement_withdrawal_tax(
     # 2. State tax calculation
     if is_capital_gains:
         # State capital gains tax using the registered calculator for the state
-        calculator = get_state_capital_gains_calculator(user.state_of_residence)
+        calculator = get_state_tax_calculator(user.state_of_residence)
         state_tax = calculator.calculate_capital_gains_tax(amount, dummy_person, config)
     else:
         # Ordinary state income tax
@@ -147,6 +149,7 @@ def _calculate_retirement_pre_tax_income(
     account: Account,
     current_savings: Decimal,
     config: GlobalParameters,
+    inflation_factor: Decimal = Decimal("1.0"),
 ) -> Decimal:
     """Calculates the pre-tax monthly withdrawal required to meet a post-tax target.
 
@@ -169,10 +172,13 @@ def _calculate_retirement_pre_tax_income(
         pre_tax_income = left + (right - left) / Decimal("2")
         pre_tax_annual = pre_tax_income * Decimal("12")
 
+        # Deflate to today's real dollars to adjust standard deduction and tax brackets for inflation
+        pre_tax_annual_real = pre_tax_annual / inflation_factor
+
         if account.account_type == AccountType.TRADITIONAL:
             # Traditional accounts are taxed on 100% of the withdrawal amount as ordinary income
-            tax_annual = calculate_retirement_withdrawal_tax(
-                pre_tax_annual, account, config, is_capital_gains=False
+            tax_annual_real = calculate_retirement_withdrawal_tax(
+                pre_tax_annual_real, account, config, is_capital_gains=False
             )
         else:
             # For GENERIC (Brokerage) accounts, tax is only applied to the capital gains portion.
@@ -183,11 +189,13 @@ def _calculate_retirement_pre_tax_income(
                     Decimal("0"),
                     (current_savings - account.cost_basis) / current_savings,
                 )
-            gains_annual = pre_tax_annual * gain_ratio
-            tax_annual = calculate_retirement_withdrawal_tax(
-                gains_annual, account, config, is_capital_gains=True
+            gains_annual_real = pre_tax_annual_real * gain_ratio
+            tax_annual_real = calculate_retirement_withdrawal_tax(
+                gains_annual_real, account, config, is_capital_gains=True
             )
 
+        # Inflate the tax back to nominal dollars
+        tax_annual = tax_annual_real * inflation_factor
         tax_monthly = tax_annual / Decimal("12")
         net_monthly = pre_tax_income - tax_monthly
 
@@ -227,12 +235,18 @@ def _simulate_retirement(
             config,
         )
 
+        # Calculate the inflation factor for this month
+        inflation_factor = _adjust_for_inflation(
+            Decimal("1"), months_since_today, config
+        )
+
         # Calculate the pre-tax monthly withdrawal needed dynamically based on current cost basis
         pre_tax_monthly = _calculate_retirement_pre_tax_income(
             inflated_post_tax_monthly,
             account,
             current_savings,
             config,
+            inflation_factor,
         )
 
         if current_savings < pre_tax_monthly:
@@ -243,28 +257,21 @@ def _simulate_retirement(
             current_savings -= pre_tax_monthly
 
         # If it's a GENERIC account, decrease cost_basis proportionally
-        if account.account_type == AccountType.GENERIC and current_savings > Decimal(
-            "0"
-        ):
-            gain_ratio = max(
-                Decimal("0"),
-                (current_savings + withdrawal_pre_tax - account.cost_basis)
-                / (current_savings + withdrawal_pre_tax),
-            )
-            # When withdrawing, the cost basis is reduced by the cost basis of the assets sold.
-            # Under the Average Basis Method (IRS Publication 550), the cost basis per dollar withdrawn is
-            # cost_basis / current_savings. Therefore, the cost basis is reduced by:
-            # cost_basis_withdrawn = withdrawal_pre_tax * (cost_basis / current_savings)
-            # which is mathematically equivalent to: withdrawal_pre_tax * (1 - gain_ratio).
-            # Source: IRS Publication 550 (Investment Income and Expenses): https://www.irs.gov/publications/p550
-            cost_basis_withdrawn = withdrawal_pre_tax * (Decimal("1") - gain_ratio)
-            account.cost_basis = max(
-                Decimal("0"), account.cost_basis - cost_basis_withdrawn
-            )
-        elif account.account_type == AccountType.GENERIC and current_savings == Decimal(
-            "0"
-        ):
-            account.cost_basis = Decimal("0")
+        if account.account_type == AccountType.GENERIC:
+            total_savings_before_withdrawal = current_savings + withdrawal_pre_tax
+            if total_savings_before_withdrawal > 0:
+                # Under the Average Basis Method (IRS Publication 550), the cost basis is reduced
+                # proportionally by the ratio of the portfolio value sold:
+                # cost_basis_withdrawn = cost_basis * (withdrawal / total_savings_before_withdrawal)
+                # Source: IRS Publication 550 (Investment Income and Expenses): https://www.irs.gov/publications/p550
+                cost_basis_withdrawn = account.cost_basis * (
+                    withdrawal_pre_tax / total_savings_before_withdrawal
+                )
+                account.cost_basis = max(
+                    Decimal("0"), account.cost_basis - cost_basis_withdrawn
+                )
+            else:
+                account.cost_basis = Decimal("0")
 
         if account.compound_frequency == Frequency.MONTHLY:
             current_savings *= (Decimal("1") + account.annual_retirement_return) ** (
