@@ -71,7 +71,7 @@ class Person:
     def create_account(
         self, account_name: Optional[str] = None, **account_kwargs
     ) -> Account:
-        account = Account(owner=self, **account_kwargs)
+        account = Account.create(owner=self, **account_kwargs)
         self.add_account(account, account_name)
         return account
 

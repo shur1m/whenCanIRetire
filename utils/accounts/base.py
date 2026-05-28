@@ -42,29 +42,28 @@ class Account:
     HsaAccount, BrokerageAccount) based on the account_type parameter.
     """
 
-    def __new__(cls, *args, **kwargs):
+    @classmethod
+    def create(cls, *args, **kwargs) -> Account:
         """Dynamic factory method to instantiate the correct subclass based on account_type."""
-        if cls is Account:
-            account_type = kwargs.get("account_type")
-            if account_type is None and len(args) >= 12:
-                account_type = args[11]
-            if account_type is None:
-                account_type = AccountType.GENERIC
+        account_type = kwargs.get("account_type")
+        if account_type is None and len(args) >= 12:
+            account_type = args[11]
+        if account_type is None:
+            account_type = AccountType.GENERIC
 
-            from utils.accounts.traditional import TraditionalAccount
-            from utils.accounts.roth import RothAccount
-            from utils.accounts.hsa import HsaAccount
-            from utils.accounts.brokerage import BrokerageAccount
+        from utils.accounts.traditional import TraditionalAccount
+        from utils.accounts.roth import RothAccount
+        from utils.accounts.hsa import HsaAccount
+        from utils.accounts.brokerage import BrokerageAccount
 
-            if account_type == AccountType.TRADITIONAL:
-                return object.__new__(TraditionalAccount)
-            elif account_type == AccountType.ROTH:
-                return object.__new__(RothAccount)
-            elif account_type == AccountType.HSA:
-                return object.__new__(HsaAccount)
-            else:
-                return object.__new__(BrokerageAccount)
-        return object.__new__(cls)
+        if account_type == AccountType.TRADITIONAL:
+            return TraditionalAccount(*args, **kwargs)
+        elif account_type == AccountType.ROTH:
+            return RothAccount(*args, **kwargs)
+        elif account_type == AccountType.HSA:
+            return HsaAccount(*args, **kwargs)
+        else:
+            return BrokerageAccount(*args, **kwargs)
 
     def __init__(
         self,
@@ -245,10 +244,6 @@ class Account:
         Appends yearly data points to graph_labels and graph_savings_values.
         """
         for year in range(self.owner.retirement_age - self.owner.current_age):
-            # compounding yearly
-            if self.compound_frequency == Frequency.ANNUALLY:
-                current_savings *= Decimal("1") + self.annual_investment_return
-
             for month in range(12):
                 current_savings = self._compound_monthly(current_savings)
                 contribution = self._get_monthly_contribution(year, month)
@@ -261,6 +256,10 @@ class Account:
             if contribution > 0:
                 current_savings += contribution
                 self.add_contribution(contribution)
+
+            # compounding yearly
+            if self.compound_frequency == Frequency.ANNUALLY:
+                current_savings *= Decimal("1") + self.annual_investment_return
 
             graph_labels.append(self.owner.current_age + year)
             graph_savings_values.append(current_savings)
@@ -312,12 +311,17 @@ class Account:
             current_savings = remaining_savings
 
             if self.compound_frequency == Frequency.MONTHLY:
-                current_savings *= (Decimal("1") + self.annual_retirement_return) ** (
-                    Decimal("1") / Decimal("12")
-                )
+                if self.compound_type == MonthlyCompoundType.DIVIDE:
+                    rate = self.annual_retirement_return / Decimal("12")
+                    current_savings *= Decimal("1") + rate
+                elif self.compound_type == MonthlyCompoundType.ROOT:
+                    rate_root = (Decimal("1") + self.annual_retirement_return) ** (
+                        Decimal("1") / Decimal("12")
+                    )
+                    current_savings *= rate_root
             elif (
                 self.compound_frequency == Frequency.ANNUALLY
-                and retirement_months % 12 == 0
+                and (retirement_months + 1) % 12 == 0
             ):
                 current_savings *= Decimal("1") + self.annual_retirement_return
 
@@ -334,23 +338,3 @@ class Account:
             graph_savings_values.append(Decimal("0"))
 
         self.current_savings = current_savings
-
-    def simulate(self, config: GlobalParameters) -> tuple[list[int], list[Decimal]]:
-        """Orchestrates both accumulation and retirement simulation phases.
-
-        Returns (graph_labels, graph_savings_values).
-        """
-        graph_labels: list[int] = []
-        graph_savings_values: list[Decimal] = []
-        self.current_savings = self.initial_savings
-
-        savings_at_retirement = self.simulate_accumulation(
-            self.current_savings, graph_labels, graph_savings_values
-        )
-        self.simulate_retirement(
-            savings_at_retirement,
-            graph_labels,
-            graph_savings_values,
-            config,
-        )
-        return graph_labels, graph_savings_values

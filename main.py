@@ -11,6 +11,7 @@ from calculate.aggregate import (
 from utils.parameters import Person
 from utils.parse_parameters import parse_parameters
 from utils.globals import GlobalParameters
+from calculate.simulator import RetirementSimulator
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,8 +22,10 @@ def generate_investment_growth_graph(user: Person, config: GlobalParameters, ax:
     total_savings_graph_labels = []
     total_savings_graph_values: list[Decimal] = []
 
-    for account_name, account in user.accounts.items():
-        graph_labels, graph_savings_values = account.simulate(config)
+    simulator = RetirementSimulator(user, config)
+    results = simulator.simulate()
+
+    for account_name, (graph_labels, graph_savings_values) in results.items():
         float_savings_values = [float(v) for v in graph_savings_values]
         ax.plot(graph_labels, float_savings_values, label=account_name)
 

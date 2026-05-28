@@ -44,6 +44,7 @@ class BrokerageAccount(Account):
         self.cost_basis: Decimal = (
             to_decimal(cost_basis) if cost_basis is not None else Decimal("0")
         )
+        self.initial_cost_basis: Decimal = self.cost_basis
 
     def add_contribution(self, amount: Decimal) -> None:
         self.cost_basis += amount
