@@ -1,9 +1,9 @@
 from decimal import Decimal
-from typing import Dict, Tuple, List, Optional
+from typing import Dict, Tuple, List
 from utils.parameters import Person
 from utils.globals import GlobalParameters, calculate_progressive_tax
 from utils.enums import Frequency, MonthlyCompoundType, AccountType
-from utils.accounts.base import Account, _adjust_for_inflation
+from utils.accounts.base import _adjust_for_inflation
 from calculate.state_tax import get_state_tax_calculator
 
 
@@ -89,11 +89,10 @@ class RetirementSimulator:
         self,
         user: Person,
         config: GlobalParameters,
-        accounts: Optional[Dict[str, Account]] = None,
     ) -> None:
         self.user = user
         self.config = config
-        self.accounts = accounts if accounts is not None else user.accounts
+        self.accounts = user.accounts
 
     def simulate(self) -> Dict[str, Tuple[List[int], List[Decimal]]]:
         """Runs the complete multi-account retirement simulation.

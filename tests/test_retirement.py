@@ -87,7 +87,8 @@ def _simulate(
 ) -> tuple[list[int], list[Decimal]]:
     from calculate.simulator import RetirementSimulator
 
-    simulator = RetirementSimulator(account.owner, config, {"temp_account": account})
+    account.owner.accounts = {"temp_account": account}
+    simulator = RetirementSimulator(account.owner, config)
     res = simulator.simulate()
     return res["temp_account"]
 
