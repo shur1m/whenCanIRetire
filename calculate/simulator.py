@@ -7,8 +7,8 @@ from utils.accounts.base import Account, _adjust_for_inflation
 
 
 def calculate_aggregate_taxes(
-    yearly_ordinary_income_real: Decimal,
-    yearly_capital_gains_real: Decimal,
+    Y_ord_real: Decimal,
+    Y_cap_real: Decimal,
     user: Person,
     config: GlobalParameters,
 ) -> Tuple[Decimal, Decimal]:
@@ -19,8 +19,8 @@ def calculate_aggregate_taxes(
     on top of the ordinary taxable income pool to correctly calculate progressive tax brackets.
 
     Args:
-        yearly_ordinary_income_real: Aggregated annual ordinary pre-tax income in today's (real) dollars.
-        yearly_capital_gains_real: Aggregated annual capital gains income in today's (real) dollars.
+        Y_ord_real: Aggregated annual ordinary pre-tax income in today's (real) dollars.
+        Y_cap_real: Aggregated annual capital gains income in today's (real) dollars.
         user: The Person owner containing filing status and state.
         config: The GlobalParameters configuration context for the tax brackets.
 
@@ -29,7 +29,7 @@ def calculate_aggregate_taxes(
     """
     # 1. Federal Ordinary Tax
     fed_deduction = config.get_fed_tax_deduction(user.filing)
-    taxable_ord_fed = max(Decimal("0"), yearly_ordinary_income_real - fed_deduction)
+    taxable_ord_fed = max(Decimal("0"), Y_ord_real - fed_deduction)
     fed_ord_brackets = config.get_fed_tax_brackets(user.filing)
     fed_ord_tax = calculate_progressive_tax(taxable_ord_fed, fed_ord_brackets)
 
@@ -39,7 +39,7 @@ def calculate_aggregate_taxes(
         if user.state_of_residence
         else Decimal("0")
     )
-    taxable_ord_state = max(Decimal("0"), yearly_ordinary_income_real - state_deduction)
+    taxable_ord_state = max(Decimal("0"), Y_ord_real - state_deduction)
     state_ord_brackets = (
         config.get_state_tax_brackets(user.state_of_residence, user.filing)
         if user.state_of_residence
@@ -59,8 +59,8 @@ def calculate_aggregate_taxes(
     ord_tax_real = fed_ord_tax + state_ord_tax
 
     # 3. Federal Capital Gains Tax
-    unused_deduction = max(Decimal("0"), fed_deduction - yearly_ordinary_income_real)
-    taxable_cap_fed = max(Decimal("0"), yearly_capital_gains_real - unused_deduction)
+    unused_deduction = max(Decimal("0"), fed_deduction - Y_ord_real)
+    taxable_cap_fed = max(Decimal("0"), Y_cap_real - unused_deduction)
     fed_cap_brackets = config.get_fed_capital_gains_brackets(user.filing)
 
     # Capital gains tax stacked on top of ordinary income: Tax(Ord + Cap) - Tax(Ord)
@@ -75,8 +75,7 @@ def calculate_aggregate_taxes(
     # using California's ordinary brackets: CA_Tax(Ord + Cap) - CA_Tax(Ord)
     if user.state_of_residence == State.CALIFORNIA:
         taxable_total_state = max(
-            Decimal("0"),
-            (yearly_ordinary_income_real + yearly_capital_gains_real) - state_deduction,
+            Decimal("0"), (Y_ord_real + Y_cap_real) - state_deduction
         )
         state_total_tax = calculate_progressive_tax(
             taxable_total_state, state_ord_brackets
@@ -244,7 +243,7 @@ class RetirementSimulator:
                 for name, acc in self.accounts.items()
                 if acc.account_type == AccountType.TRADITIONAL
             )
-            yearly_ord_real = total_trad_withdrawal * 12 / inflation_factor
+            Y_ord_real = total_trad_withdrawal * 12 / inflation_factor
 
             # Compute aggregate pre-tax capital gains real income
             total_brokerage_cap_gains = Decimal("0")
@@ -263,11 +262,11 @@ class RetirementSimulator:
                     gain_ratio[name] = g_ratio
                     total_brokerage_cap_gains += W_capped[name] * g_ratio
 
-            yearly_cap_real = total_brokerage_cap_gains * 12 / inflation_factor
+            Y_cap_real = total_brokerage_cap_gains * 12 / inflation_factor
 
             # Calculate aggregate taxes
             ord_tax_real, cap_tax_real = calculate_aggregate_taxes(
-                yearly_ord_real, yearly_cap_real, self.user, self.config
+                Y_ord_real, Y_cap_real, self.user, self.config
             )
 
             ord_tax_monthly = ord_tax_real * inflation_factor / 12
