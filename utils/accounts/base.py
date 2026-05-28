@@ -338,25 +338,3 @@ class Account:
             graph_savings_values.append(Decimal("0"))
 
         self.current_savings = current_savings
-
-    def simulate(self, config: GlobalParameters) -> tuple[list[int], list[Decimal]]:
-        """Orchestrates both accumulation and retirement simulation phases.
-
-        Returns (graph_labels, graph_savings_values).
-        """
-        from calculate.simulator import RetirementSimulator
-
-        accounts_to_simulate: dict[str, Account] = self.owner.accounts
-        if not any(acc is self for acc in accounts_to_simulate.values()):
-            accounts_to_simulate = {"temp_account": self}
-
-        simulator = RetirementSimulator(self.owner, config, accounts_to_simulate)
-        results = simulator.simulate()
-
-        # Find our results
-        for name, acc in accounts_to_simulate.items():
-            if acc is self:
-                return results[name]
-
-        # Fallback (should never happen)
-        return [], []
