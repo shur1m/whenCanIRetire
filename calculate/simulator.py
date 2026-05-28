@@ -2,8 +2,9 @@ from decimal import Decimal
 from typing import Dict, Tuple, List, Optional
 from utils.parameters import Person
 from utils.globals import GlobalParameters, calculate_progressive_tax
-from utils.enums import Frequency, MonthlyCompoundType, AccountType, State
+from utils.enums import Frequency, MonthlyCompoundType, AccountType
 from utils.accounts.base import Account, _adjust_for_inflation
+from calculate.state_tax import get_state_tax_calculator
 
 
 def calculate_aggregate_taxes(
@@ -71,21 +72,10 @@ def calculate_aggregate_taxes(
     fed_cap_tax = total_fed_cap_tax - base_fed_cap_tax
 
     # 4. State Capital Gains Tax
-    # California treats capital gains as ordinary income, meaning we stack capital gains tax
-    # using California's ordinary brackets: CA_Tax(Ord + Cap) - CA_Tax(Ord)
-    if user.state_of_residence == State.CALIFORNIA:
-        taxable_total_state = max(
-            Decimal("0"), (Y_ord_real + Y_cap_real) - state_deduction
-        )
-        state_total_tax = calculate_progressive_tax(
-            taxable_total_state, state_ord_brackets
-        )
-        state_total_tax += config.calculate_state_surcharges(
-            user.state_of_residence, "ordinary", taxable_total_state
-        )
-        state_cap_tax = state_total_tax - state_ord_tax
-    else:
-        state_cap_tax = Decimal("0")
+    state_calculator = get_state_tax_calculator(user.state_of_residence)
+    state_cap_tax = state_calculator.calculate_capital_gains_tax(
+        Y_cap_real, user, config, ordinary_income=Y_ord_real
+    )
 
     cap_tax_real = fed_cap_tax + state_cap_tax
 

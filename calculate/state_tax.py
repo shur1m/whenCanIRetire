@@ -17,18 +17,34 @@ class StateTaxCalculator:
         return Decimal("0")
 
     def calculate_capital_gains_tax(
-        self, capital_gains: Decimal, user: Person, config: GlobalParameters
+        self,
+        capital_gains: Decimal,
+        user: Person,
+        config: GlobalParameters,
+        ordinary_income: Decimal = Decimal("0"),
     ) -> Decimal:
-        """Default fallback: treat capital gains as ordinary state income."""
-        dummy_person = Person(
+        """Default fallback: treat capital gains as ordinary state income, stacked on top of ordinary income."""
+        dummy_total = Person(
             current_age=user.current_age,
             retirement_age=user.retirement_age,
             lifespan=user.lifespan,
-            pre_tax_income=capital_gains,
+            pre_tax_income=ordinary_income + capital_gains,
             state_of_residence=user.state_of_residence,
             filing=user.filing,
         )
-        return self.calculate_income_tax(dummy_person, config)
+        total_tax = self.calculate_income_tax(dummy_total, config)
+
+        dummy_ordinary = Person(
+            current_age=user.current_age,
+            retirement_age=user.retirement_age,
+            lifespan=user.lifespan,
+            pre_tax_income=ordinary_income,
+            state_of_residence=user.state_of_residence,
+            filing=user.filing,
+        )
+        ordinary_tax = self.calculate_income_tax(dummy_ordinary, config)
+
+        return max(Decimal("0"), total_tax - ordinary_tax)
 
 
 class NoStateTaxCalculator(StateTaxCalculator):
@@ -38,7 +54,11 @@ class NoStateTaxCalculator(StateTaxCalculator):
         return Decimal("0")
 
     def calculate_capital_gains_tax(
-        self, capital_gains: Decimal, user: Person, config: GlobalParameters
+        self,
+        capital_gains: Decimal,
+        user: Person,
+        config: GlobalParameters,
+        ordinary_income: Decimal = Decimal("0"),
     ) -> Decimal:
         return Decimal("0")
 
