@@ -38,12 +38,7 @@ def generate_investment_growth_graph(user: Person, config: GlobalParameters, ax:
                 total_savings_graph_values.append(Decimal("0"))
             total_savings_graph_values[i] += graph_savings_values[i]
 
-    yearly_retirement_expense = sum(
-        [
-            account.annual_retirement_post_tax_expense
-            for account in user.accounts.values()
-        ]
-    )
+    yearly_retirement_expense = user.annual_retirement_post_tax_expense
 
     float_total_savings = [float(v) for v in total_savings_graph_values]
     ax.plot(total_savings_graph_labels, float_total_savings, label="Total Savings")

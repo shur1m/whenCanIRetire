@@ -75,7 +75,6 @@ class Account:
         annual_investment_increase: Union[Decimal, float, int] = 0.0,
         annual_investment_return: Union[Decimal, float, int] = 0.07,
         annual_retirement_return: Union[Decimal, float, int] = 0.05,
-        annual_retirement_post_tax_expense: Union[Decimal, float, int] = 72_000,
         compound_frequency: Frequency = Frequency.MONTHLY,
         compound_type: MonthlyCompoundType = MonthlyCompoundType.ROOT,
         account_type: AccountType = AccountType.GENERIC,
@@ -92,9 +91,6 @@ class Account:
 
         self.annual_investment_return: Decimal = to_decimal(annual_investment_return)
         self.annual_retirement_return: Decimal = to_decimal(annual_retirement_return)
-        self.annual_retirement_post_tax_expense: Decimal = to_decimal(
-            annual_retirement_post_tax_expense
-        )
         self.compound_frequency: Frequency = compound_frequency
         self.compound_type: MonthlyCompoundType = compound_type
         self.account_type: AccountType = account_type
@@ -279,7 +275,7 @@ class Account:
         Appends yearly data points to graph_labels and graph_savings_values.
         """
         retirement_months = 0
-        post_tax_annual_expense = self.annual_retirement_post_tax_expense
+        post_tax_annual_expense = self.owner.annual_retirement_post_tax_expense
         post_tax_monthly_withdrawal = post_tax_annual_expense / Decimal("12")
 
         while (

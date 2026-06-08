@@ -3,7 +3,7 @@ from typing import Dict, Tuple, List
 from utils.parameters import Person
 from utils.globals import GlobalParameters, calculate_progressive_tax
 from utils.enums import Frequency, MonthlyCompoundType, AccountType
-from utils.accounts.base import _adjust_for_inflation
+from utils.accounts.base import Account, _adjust_for_inflation
 from calculate.state_tax import get_state_tax_calculator
 
 
@@ -104,11 +104,7 @@ class RetirementSimulator:
             A dictionary mapping account names to tuples of (labels/ages, savings_values).
         """
         account_labels, account_values, savings = self._reset_simulation_state()
-
-        # 1. Accumulation Phase
         self._run_accumulation_phase(savings, account_labels, account_values)
-
-        # 2. Coordinated Retirement Phase
         self._run_retirement_phase(savings, account_labels, account_values)
 
         return {
@@ -208,25 +204,38 @@ class RetirementSimulator:
 
         Handles standard deduction application and stacking capital gains on top of ordinary income.
         """
-        # Inflate post-tax targets for this month
-        inflated_post_tax = {}
-        for name, account in self.accounts.items():
-            post_tax_target = account.annual_retirement_post_tax_expense / Decimal("12")
-            inflated_post_tax[name] = _adjust_for_inflation(
-                post_tax_target, months_since_today, self.config
-            )
+
+        # Determine the priority order of accounts
+        def get_drawdown_priority(item: Tuple[str, Account]) -> Tuple[int, str]:
+            name, account = item
+            if account.account_type == AccountType.GENERIC:
+                priority = 1
+            elif account.account_type == AccountType.TRADITIONAL:
+                priority = 2
+            else:  # ROTH and HSA
+                priority = 3
+            return priority, name
+
+        accounts_in_order = sorted(self.accounts.items(), key=get_drawdown_priority)
+
+        # Target monthly post-tax expense inflated for this month
+        inflated_post_tax = _adjust_for_inflation(
+            self.user.annual_retirement_post_tax_expense / Decimal("12"),
+            months_since_today,
+            self.config,
+        )
 
         # Initialize solver estimates
-        W_pre = {name: val for name, val in inflated_post_tax.items()}
+        W_pre = {name: Decimal("0") for name in self.accounts}
         W_capped = {name: Decimal("0") for name in self.accounts}
         tax_allocated = {name: Decimal("0") for name in self.accounts}
 
         for _ in range(20):
-            # Cap withdrawals by current savings
+            # 1. Cap estimates by current savings
             for name in self.accounts:
                 W_capped[name] = min(W_pre[name], savings[name])
 
-            # Compute aggregate pre-tax ordinary real income
+            # 2. Compute aggregate tax for the current capped withdrawals
             total_trad_withdrawal = sum(
                 W_capped[name]
                 for name, acc in self.accounts.items()
@@ -234,7 +243,6 @@ class RetirementSimulator:
             )
             Y_ord_real = total_trad_withdrawal * 12 / inflation_factor
 
-            # Compute aggregate pre-tax capital gains real income
             total_brokerage_cap_gains = Decimal("0")
             gain_ratio = {}
             for name, acc in self.accounts.items():
@@ -261,7 +269,7 @@ class RetirementSimulator:
             ord_tax_monthly = ord_tax_real * inflation_factor / 12
             cap_tax_monthly = cap_tax_real * inflation_factor / 12
 
-            # Allocate taxes back to the respective accounts
+            # Allocate taxes back to respective accounts
             for name, acc in self.accounts.items():
                 if acc.account_type == AccountType.TRADITIONAL:
                     if total_trad_withdrawal > 0:
@@ -281,13 +289,25 @@ class RetirementSimulator:
                 else:
                     tax_allocated[name] = Decimal("0")
 
-            # Update pre-tax estimates for next iteration
+            # 3. Determine the sequential net needed from each account
+            remaining_net = inflated_post_tax
+            net_needed = {name: Decimal("0") for name in self.accounts}
+            for name, acc in accounts_in_order:
+                if remaining_net <= 0:
+                    break
+                if savings[name] <= 0:
+                    continue
+
+                max_net_from_savings = max(
+                    Decimal("0"), savings[name] - tax_allocated[name]
+                )
+                net_needed[name] = min(remaining_net, max_net_from_savings)
+                remaining_net -= net_needed[name]
+
+            # 4. Update pre-tax estimates for next iteration and check difference
             diff = Decimal("0")
             for name in self.accounts:
-                if W_pre[name] <= savings[name]:
-                    new_val = inflated_post_tax[name] + tax_allocated[name]
-                else:
-                    new_val = savings[name]
+                new_val = net_needed[name] + tax_allocated[name]
                 diff += abs(W_pre[name] - new_val)
                 W_pre[name] = new_val
 

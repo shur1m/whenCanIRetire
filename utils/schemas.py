@@ -19,7 +19,6 @@ class AccountSchema(BaseModel):
     annual_investment_increase: Decimal = Decimal("0")
     annual_investment_return: Decimal = Decimal("0.07")
     annual_retirement_return: Decimal = Decimal("0.05")
-    annual_retirement_post_tax_expense: Decimal = Decimal("72000")
     compound_frequency: Frequency = Frequency.MONTHLY
     compound_type: MonthlyCompoundType = MonthlyCompoundType.ROOT
 
@@ -30,6 +29,7 @@ class PersonSchema(BaseModel):
     lifespan: int = 120
     pre_tax_income: Decimal = Decimal("115000")
     additional_income_tax_deductions: Decimal = Decimal("0")
+    annual_retirement_post_tax_expense: Decimal = Decimal("72000")
     state_of_residence: Optional[State] = None
     filing: Filing = Filing.INDIVIDUAL
     Accounts: Dict[str, AccountSchema] = Field(default_factory=dict)

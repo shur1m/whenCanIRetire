@@ -62,6 +62,7 @@ def _make_person_and_account(
         retirement_age=retirement_age,
         lifespan=lifespan,
         pre_tax_income=pre_tax_income,
+        annual_retirement_post_tax_expense=annual_retirement_post_tax_expense,
         state_of_residence=state_of_residence,
     )
     config = _make_config(2024)
@@ -74,7 +75,6 @@ def _make_person_and_account(
         annual_investment_increase=annual_investment_increase,
         annual_investment_return=annual_investment_return,
         annual_retirement_return=annual_retirement_return,
-        annual_retirement_post_tax_expense=annual_retirement_post_tax_expense,
         compound_frequency=compound_frequency,
         compound_type=compound_type,
         account_type=account_type,
@@ -359,13 +359,13 @@ class TestSimulateRetirement:
             retirement_age=retirement_age,
             lifespan=lifespan,
             pre_tax_income=115_000,
+            annual_retirement_post_tax_expense=annual_expense,
             state_of_residence=State.TEXAS,
         )
         config = _make_config(2024)
         account = Account.create(
             owner=user,
             initial_savings=initial_savings,
-            annual_retirement_post_tax_expense=annual_expense,
             annual_retirement_return=annual_retirement_return,
             compound_frequency=compound_frequency,
             account_type=account_type,
@@ -482,6 +482,7 @@ class TestSimulateRetirement:
             retirement_age=40,
             lifespan=50,
             pre_tax_income=115_000,
+            annual_retirement_post_tax_expense=12_000,
             state_of_residence=State.TEXAS,
         )
         config = _make_config(2024)
@@ -489,7 +490,6 @@ class TestSimulateRetirement:
         account = Account.create(
             owner=user,
             initial_savings=120_000,
-            annual_retirement_post_tax_expense=12_000,  # $1,000/month
             annual_retirement_return=0.0,
             compound_frequency=Frequency.MONTHLY,
             account_type=AccountType.ROTH,  # no tax grossing
@@ -522,6 +522,7 @@ class TestSimulateRetirement:
             retirement_age=40,
             lifespan=41,
             pre_tax_income=115_000,
+            annual_retirement_post_tax_expense=12_000,
             state_of_residence=State.TEXAS,
         )
         config = _make_config(2024)
@@ -531,7 +532,6 @@ class TestSimulateRetirement:
         account = Account.create(
             owner=user,
             initial_savings=100_000,
-            annual_retirement_post_tax_expense=12_000,
             annual_retirement_return=0.0,
             compound_frequency=Frequency.MONTHLY,
             account_type=AccountType.GENERIC,
@@ -564,7 +564,6 @@ class TestSimulateRetirement:
         account_trad = Account.create(
             owner=user,
             initial_savings=1_000_000,
-            annual_retirement_post_tax_expense=60_000,
             account_type=AccountType.TRADITIONAL,
         )
 
@@ -595,7 +594,6 @@ class TestSimulateRetirement:
         account_generic = Account.create(
             owner=user,
             initial_savings=1_000_000,
-            annual_retirement_post_tax_expense=60_000,
             account_type=AccountType.GENERIC,
         )
         assert isinstance(account_generic, BrokerageAccount)
@@ -838,6 +836,7 @@ class TestSimulate:
             retirement_age=30,
             lifespan=31,
             pre_tax_income=100_000,
+            annual_retirement_post_tax_expense=20_000,
             state_of_residence=State.TEXAS,
             filing=Filing.INDIVIDUAL,
         )
@@ -846,14 +845,12 @@ class TestSimulate:
         acc1 = Account.create(
             owner=user,
             initial_savings=500_000,
-            annual_retirement_post_tax_expense=10_000,
             annual_retirement_return=0.0,
             account_type=AccountType.TRADITIONAL,
         )
         acc2 = Account.create(
             owner=user,
             initial_savings=500_000,
-            annual_retirement_post_tax_expense=10_000,
             annual_retirement_return=0.0,
             account_type=AccountType.TRADITIONAL,
         )
@@ -869,7 +866,9 @@ class TestSimulate:
         _, vals2 = results["Traditional_2"]
 
         assert vals1[0] < 490_000
-        assert vals2[0] < 490_000
+        assert (
+            vals2[0] == 500_000
+        )  # Sequentially untouched because Traditional_1 is drawn first and has enough savings
 
     def test_coordinated_simulation_stacks_capital_gains(self):
         """Verify that capital gains are stacked on top of ordinary income in coordinated simulation."""
@@ -878,6 +877,7 @@ class TestSimulate:
             retirement_age=30,
             lifespan=31,
             pre_tax_income=100_000,
+            annual_retirement_post_tax_expense=60_000,
             state_of_residence=State.TEXAS,
             filing=Filing.INDIVIDUAL,
         )
@@ -886,7 +886,6 @@ class TestSimulate:
         acc_trad = Account.create(
             owner=user,
             initial_savings=500_000,
-            annual_retirement_post_tax_expense=50_000,
             annual_retirement_return=0.0,
             account_type=AccountType.TRADITIONAL,
         )
@@ -894,7 +893,6 @@ class TestSimulate:
             owner=user,
             initial_savings=500_000,
             cost_basis=0,
-            annual_retirement_post_tax_expense=10_000,
             annual_retirement_return=0.0,
             account_type=AccountType.GENERIC,
         )
