@@ -1,27 +1,15 @@
-from __future__ import annotations
-
 from typing import Optional, Union
 from decimal import Decimal
 from utils.enums import Filing, Frequency, AccountType, State
 from utils.accounts import (
     Account,
-    create_account,
     to_decimal,
-    TraditionalAccount,
-    RothAccount,
-    HsaAccount,
-    BrokerageAccount,
 )
 
 __all__ = [
     "Person",
     "Account",
-    "create_account",
     "to_decimal",
-    "TraditionalAccount",
-    "RothAccount",
-    "HsaAccount",
-    "BrokerageAccount",
 ]
 
 
@@ -77,7 +65,7 @@ class Person:
     def create_account(
         self, account_name: Optional[str] = None, **account_kwargs
     ) -> Account:
-        account = create_account(self, **account_kwargs)
+        account = Account(self, **account_kwargs)
         self.add_account(account, account_name)
         return account
 

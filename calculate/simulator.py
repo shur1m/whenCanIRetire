@@ -2,9 +2,8 @@ from decimal import Decimal
 from typing import Dict, Tuple, List
 from utils.parameters import Person
 from utils.globals import GlobalParameters, calculate_progressive_tax
-from utils.enums import Frequency, MonthlyCompoundType, AccountType
+from utils.enums import AccountType
 from utils.accounts.base import Account, _adjust_for_inflation
-from utils.accounts.brokerage import BrokerageAccount
 from calculate.state_tax import get_state_tax_calculator
 
 
@@ -104,9 +103,9 @@ class RetirementSimulator:
         Returns:
             A dictionary mapping account names to tuples of (labels/ages, savings_values).
         """
-        account_labels, account_values, savings = self._reset_simulation_state()
-        self._run_accumulation_phase(savings, account_labels, account_values)
-        self._run_retirement_phase(savings, account_labels, account_values)
+        account_labels, account_values = self._reset_simulation_state()
+        self._run_accumulation_phase(account_labels, account_values)
+        self._run_retirement_phase(account_labels, account_values)
 
         return {
             name: (account_labels[name], account_values[name]) for name in self.accounts
@@ -114,41 +113,34 @@ class RetirementSimulator:
 
     def _reset_simulation_state(
         self,
-    ) -> Tuple[Dict[str, List[int]], Dict[str, List[Decimal]], Dict[str, Decimal]]:
+    ) -> Tuple[Dict[str, List[int]], Dict[str, List[Decimal]]]:
         """Initializes empty labels and values lists, and resets account current_savings and cost basis."""
         account_labels: Dict[str, List[int]] = {}
         account_values: Dict[str, List[Decimal]] = {}
-        savings: Dict[str, Decimal] = {}
 
         for name, account in self.accounts.items():
             account_labels[name] = []
             account_values[name] = []
             account.current_savings = account.initial_savings
-            savings[name] = account.initial_savings
 
-            if isinstance(account, BrokerageAccount):
-                if hasattr(account, "initial_cost_basis"):
-                    account.cost_basis = account.initial_cost_basis
-                else:
-                    account.initial_cost_basis = account.cost_basis
+            if account.account_type == AccountType.GENERIC:
+                account.cost_basis = account.initial_cost_basis
 
-        return account_labels, account_values, savings
+        return account_labels, account_values
 
     def _run_accumulation_phase(
         self,
-        savings: Dict[str, Decimal],
         account_labels: Dict[str, List[int]],
         account_values: Dict[str, List[Decimal]],
     ) -> None:
         """Simulates growth and contributions for each account independently up to retirement age."""
         for name, account in self.accounts.items():
-            savings[name] = account.simulate_accumulation(
-                savings[name], account_labels[name], account_values[name]
+            account.simulate_accumulation(
+                account.current_savings, account_labels[name], account_values[name]
             )
 
     def _run_retirement_phase(
         self,
-        savings: Dict[str, Decimal],
         account_labels: Dict[str, List[int]],
         account_values: Dict[str, List[Decimal]],
     ) -> None:
@@ -157,7 +149,7 @@ class RetirementSimulator:
         lifespan_months = (self.user.lifespan - self.user.retirement_age) * 12
 
         while retirement_months < lifespan_months:
-            if all(savings[name] <= 0 for name in self.accounts):
+            if all(acc.current_savings <= 0 for acc in self.accounts.values()):
                 self._record_depletion_state(account_labels, account_values)
                 break
 
@@ -170,28 +162,24 @@ class RetirementSimulator:
 
             # 1. Target monthly net withdrawals and run solver to get required gross withdrawals
             W_capped, tax_allocated = self._calculate_monthly_pre_tax_withdrawals(
-                savings, months_since_today, inflation_factor
+                months_since_today, inflation_factor
             )
 
-            # 2. Deduct finalized withdrawals and update cost basis
+            # 2. Deduct finalized withdrawals
             for name, acc in self.accounts.items():
-                savings[name] = savings[name] - W_capped[name]
-                acc.post_withdraw_update(W_capped[name], savings[name])
+                acc.withdraw(W_capped[name])
 
             # 3. Compound remaining balances
-            self._compound_savings_for_month(savings, retirement_months)
+            for acc in self.accounts.values():
+                acc.compound_retirement_month(retirement_months)
 
             retirement_months += 1
 
             # 4. Record yearly data points
             if retirement_months % 12 == 0:
                 self._record_yearly_balances(
-                    savings, account_labels, account_values, retirement_months
+                    account_labels, account_values, retirement_months
                 )
-
-        # Update final savings on the account models
-        for name, acc in self.accounts.items():
-            acc.current_savings = savings[name]
 
     def _get_drawdown_order(self) -> List[Tuple[str, Account]]:
         """Returns the accounts sorted by priority: Brokerage/Generic -> Traditional -> Roth/HSA."""
@@ -211,19 +199,18 @@ class RetirementSimulator:
         self,
         acc: Account,
         remaining_net: Decimal,
-        account_savings: Decimal,
         inflation_factor: Decimal,
         total_trad_withdrawn: Decimal,
         total_cap_withdrawn: Decimal,
     ) -> Tuple[Decimal, Decimal]:
         """Calculates the pre-tax withdrawal and tax incurred for a taxable account using binary search."""
-        # Determine the gain ratio for capital gains tax calculations (only for Brokerage)
+        # Determine the gain ratio for capital gains tax calculations (only for GENERIC)
         g_ratio = Decimal("0")
         if acc.account_type == AccountType.GENERIC:
-            if isinstance(acc, BrokerageAccount) and account_savings > 0:
+            if acc.current_savings > 0:
                 g_ratio = max(
                     Decimal("0"),
-                    (account_savings - acc.cost_basis) / account_savings,
+                    (acc.current_savings - acc.cost_basis) / acc.current_savings,
                 )
 
         # Helper to calculate marginal tax for a candidate withdrawal W
@@ -256,14 +243,14 @@ class RetirementSimulator:
             return total_tax_monthly - base_tax_monthly
 
         # Boundary check: if the entire savings cannot cover remaining_net after tax, deplete the account
-        max_tax = get_marginal_tax(account_savings)
-        if account_savings - max_tax <= remaining_net:
-            return account_savings, max_tax
+        max_tax = get_marginal_tax(acc.current_savings)
+        if acc.current_savings - max_tax <= remaining_net:
+            return acc.current_savings, max_tax
 
         # Binary search for the exact pre-tax amount
         left = Decimal("0")
-        right = account_savings
-        best_W = account_savings
+        right = acc.current_savings
+        best_W = acc.current_savings
         best_tax = max_tax
 
         for _ in range(20):
@@ -282,7 +269,6 @@ class RetirementSimulator:
 
     def _calculate_monthly_pre_tax_withdrawals(
         self,
-        savings: Dict[str, Decimal],
         months_since_today: int,
         inflation_factor: Decimal,
     ) -> Tuple[Dict[str, Decimal], Dict[str, Decimal]]:
@@ -306,12 +292,12 @@ class RetirementSimulator:
         for name, acc in self._get_drawdown_order():
             if remaining_net <= 0:
                 break
-            if savings[name] <= 0:
+            if acc.current_savings <= 0:
                 continue
 
             # 1. Non-taxable accounts (Roth, HSA, etc.) require no tax calculations
             if acc.account_type not in (AccountType.TRADITIONAL, AccountType.GENERIC):
-                W = min(remaining_net, savings[name])
+                W = min(remaining_net, acc.current_savings)
                 W_capped[name] = W
                 tax_allocated[name] = Decimal("0")
                 remaining_net -= W
@@ -321,14 +307,13 @@ class RetirementSimulator:
             W, tax = self._solve_taxable_withdrawal(
                 acc,
                 remaining_net,
-                savings[name],
                 inflation_factor,
                 total_trad_withdrawn,
                 total_cap_withdrawn,
             )
             W_capped[name] = W
             tax_allocated[name] = tax
-            if W < savings[name]:
+            if W < acc.current_savings:
                 remaining_net = Decimal("0")
             else:
                 remaining_net -= W - tax
@@ -339,34 +324,14 @@ class RetirementSimulator:
             elif acc.account_type == AccountType.GENERIC:
                 # Determine gain ratio for tax stacking
                 g_ratio = Decimal("0")
-                if isinstance(acc, BrokerageAccount) and savings[name] > 0:
+                if acc.current_savings > 0:
                     g_ratio = max(
                         Decimal("0"),
-                        (savings[name] - acc.cost_basis) / savings[name],
+                        (acc.current_savings - acc.cost_basis) / acc.current_savings,
                     )
                 total_cap_withdrawn += W * g_ratio
 
         return W_capped, tax_allocated
-
-    def _compound_savings_for_month(
-        self, savings: Dict[str, Decimal], retirement_months: int
-    ) -> None:
-        """Applies compounding returns to the remaining savings of each account."""
-        for name, acc in self.accounts.items():
-            if acc.compound_frequency == Frequency.MONTHLY:
-                if acc.compound_type == MonthlyCompoundType.DIVIDE:
-                    rate = acc.annual_retirement_return / Decimal("12")
-                    savings[name] *= Decimal("1") + rate
-                elif acc.compound_type == MonthlyCompoundType.ROOT:
-                    rate_root = (Decimal("1") + acc.annual_retirement_return) ** (
-                        Decimal("1") / Decimal("12")
-                    )
-                    savings[name] *= rate_root
-            elif (
-                acc.compound_frequency == Frequency.ANNUALLY
-                and (retirement_months + 1) % 12 == 0
-            ):
-                savings[name] *= Decimal("1") + acc.annual_retirement_return
 
     def _record_depletion_state(
         self,
@@ -386,13 +351,12 @@ class RetirementSimulator:
 
     def _record_yearly_balances(
         self,
-        savings: Dict[str, Decimal],
         account_labels: Dict[str, List[int]],
         account_values: Dict[str, List[Decimal]],
         retirement_months: int,
     ) -> None:
         """Records the year-end account balances in the labels and values lists."""
         year_index = self.user.retirement_age + retirement_months // 12
-        for name in self.accounts:
+        for name, acc in self.accounts.items():
             account_labels[name].append(year_index)
-            account_values[name].append(savings[name])
+            account_values[name].append(acc.current_savings)

@@ -18,7 +18,7 @@ from decimal import Decimal
 
 from utils.accounts.base import _adjust_for_inflation
 from utils.globals import GlobalParameters
-from utils.parameters import Person, Account, BrokerageAccount, create_account
+from utils.parameters import Person, Account
 from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State
 from utils.schemas import TaxSchema
 from calculate.simulator import RetirementSimulator, calculate_aggregate_taxes
@@ -69,7 +69,7 @@ def _make_person_and_account(
         state_of_residence=state_of_residence,
     )
     config = _make_config(2024)
-    account = create_account(
+    account = Account(
         owner=user,
         initial_savings=initial_savings,
         cost_basis=cost_basis,
@@ -366,7 +366,7 @@ class TestSimulateRetirement:
         )
         config = _make_config(2024)
         config.inflation_rate = Decimal(str(inflation_rate))
-        account = create_account(
+        account = Account(
             owner=user,
             initial_savings=initial_savings,
             regular_investment_dollar=Decimal("0"),
@@ -527,7 +527,7 @@ class TestSimulateRetirement:
         )
         config = _make_config(2024)
         config.inflation_rate = Decimal("0.0")
-        account = create_account(
+        account = Account(
             owner=user,
             initial_savings=100_000,
             cost_basis=Decimal("150000"),
@@ -537,7 +537,7 @@ class TestSimulateRetirement:
             compound_frequency=Frequency.MONTHLY,
             account_type=AccountType.GENERIC,
         )
-        assert isinstance(account, BrokerageAccount)
+        assert account.account_type == AccountType.GENERIC
         user.add_account(account, "Brokerage")
 
         simulator = RetirementSimulator(user, config)
@@ -548,15 +548,11 @@ class TestSimulateRetirement:
         ), f"Expected cost basis of 132000.00 after 12 months, got {account.cost_basis:.2f}"
 
     def test_retirement_tax_inflation_adjustment(self):
-        """
-        Verify that tax calculations adjust for inflation so that bracket creep is avoided.
-        The pre-tax monthly income required for a target post-tax monthly income must scale
-        proportionally with the inflation factor.
-        """
+        """Verify that pre-tax calculations correctly adjust for inflation under progressive tax tables."""
         user = Person(
             current_age=30,
-            retirement_age=40,
-            lifespan=50,
+            retirement_age=65,
+            lifespan=90,
             pre_tax_income=115_000,
             annual_retirement_post_tax_expense=60_000,  # $5,000 / month
             state_of_residence=State.TEXAS,
@@ -564,7 +560,7 @@ class TestSimulateRetirement:
         config = _make_config(2024)
 
         # Test TRADITIONAL account (progressive ordinary income tax)
-        account_trad = create_account(
+        account_trad = Account(
             owner=user,
             initial_savings=1_000_000,
             account_type=AccountType.TRADITIONAL,
@@ -574,18 +570,17 @@ class TestSimulateRetirement:
         simulator = RetirementSimulator(user, config)
 
         # 1. Test at inflation_factor = 1.0 (real dollars, month 0)
-        savings_1 = {"Traditional": Decimal("1000000")}
+        account_trad.current_savings = Decimal("1000000")
         W_capped_1, _ = simulator._calculate_monthly_pre_tax_withdrawals(
-            savings_1, months_since_today=0, inflation_factor=Decimal("1.0")
+            months_since_today=0, inflation_factor=Decimal("1.0")
         )
         pre_tax_real = W_capped_1["Traditional"]
 
         # 2. Test at inflation_factor_120 (10 years of inflation)
         months_120 = 120
         inflation_factor_120 = _adjust_for_inflation(Decimal("1"), months_120, config)
-        savings_120 = {"Traditional": Decimal("1000000") * inflation_factor_120}
+        account_trad.current_savings = Decimal("1000000") * inflation_factor_120
         W_capped_120, _ = simulator._calculate_monthly_pre_tax_withdrawals(
-            savings_120,
             months_since_today=months_120,
             inflation_factor=inflation_factor_120,
         )
@@ -598,33 +593,32 @@ class TestSimulateRetirement:
 
         # Test GENERIC account (capital gains tax)
 
-        account_generic = create_account(
+        account_generic = Account(
             owner=user,
             initial_savings=1_000_000,
             account_type=AccountType.GENERIC,
         )
-        assert isinstance(account_generic, BrokerageAccount)
+        assert account_generic.account_type == AccountType.GENERIC
         user.accounts = {"Brokerage": account_generic}
 
         # For the gain ratio to be 0.6, savings is 1,000,000, cost_basis is 400,000.
         # At month 0 (inflation factor 1.0):
+        account_generic.current_savings = Decimal("1000000")
         account_generic.cost_basis = Decimal("400000")
         simulator_gen = RetirementSimulator(user, config)
 
-        savings_gen_0 = {"Brokerage": Decimal("1000000")}
         W_capped_gen_0, _ = simulator_gen._calculate_monthly_pre_tax_withdrawals(
-            savings_gen_0, months_since_today=0, inflation_factor=Decimal("1.0")
+            months_since_today=0, inflation_factor=Decimal("1.0")
         )
         pre_tax_real_gen = W_capped_gen_0["Brokerage"]
 
         # At month 240 (20 years of inflation):
         months_240 = 240
         inflation_factor_240 = _adjust_for_inflation(Decimal("1"), months_240, config)
-        savings_gen_240 = {"Brokerage": Decimal("1000000") * inflation_factor_240}
+        account_generic.current_savings = Decimal("1000000") * inflation_factor_240
         account_generic.cost_basis = Decimal("400000") * inflation_factor_240
 
         W_capped_gen_240, _ = simulator_gen._calculate_monthly_pre_tax_withdrawals(
-            savings_gen_240,
             months_since_today=months_240,
             inflation_factor=inflation_factor_240,
         )
@@ -747,7 +741,7 @@ class TestSimulate:
         # Contributions: 3 years * 12 months * 1000/month = 36000.
         # Expected basis = 41000.
 
-        assert isinstance(account, BrokerageAccount)
+        assert account.account_type == AccountType.GENERIC
         assert account.cost_basis == Decimal("41000")
 
     def test_federal_capital_gains_brackets_2025_and_2026(self):
@@ -850,13 +844,13 @@ class TestSimulate:
         )
         config = _make_config(year=2024)
 
-        acc1 = create_account(
+        acc1 = Account(
             owner=user,
             initial_savings=500_000,
             annual_retirement_return=0.0,
             account_type=AccountType.TRADITIONAL,
         )
-        acc2 = create_account(
+        acc2 = Account(
             owner=user,
             initial_savings=500_000,
             annual_retirement_return=0.0,
@@ -889,13 +883,13 @@ class TestSimulate:
         )
         config = _make_config(year=2024)
 
-        acc_trad = create_account(
+        acc_trad = Account(
             owner=user,
             initial_savings=500_000,
             annual_retirement_return=0.0,
             account_type=AccountType.TRADITIONAL,
         )
-        acc_brok = create_account(
+        acc_brok = Account(
             owner=user,
             initial_savings=500_000,
             cost_basis=0,

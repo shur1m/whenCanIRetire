@@ -72,34 +72,69 @@ class Account:
         self.compound_type: MonthlyCompoundType = compound_type
         self.account_type: AccountType = account_type
 
+        # Cost basis tracking is specific to generic (brokerage) accounts
+        if self.account_type == AccountType.GENERIC:
+            self.cost_basis: Decimal = (
+                to_decimal(cost_basis) if cost_basis is not None else Decimal("0")
+            )
+            self.initial_cost_basis: Decimal = self.cost_basis
+        else:
+            self.cost_basis = Decimal("0")
+            self.initial_cost_basis = Decimal("0")
+
     def add_contribution(self, amount: Decimal) -> None:
-        """Invoked during the accumulation phase to record a contribution.
+        """Adds a contribution to the account, increasing savings and cost basis if applicable."""
+        self.current_savings += amount
+        if self.account_type == AccountType.GENERIC:
+            self.cost_basis += amount
 
-        Overridden in BrokerageAccount to increase the cost basis.
-        """
+    def withdraw(self, amount: Decimal) -> None:
+        """Deducts a pre-tax withdrawal amount from the account, adjusting cost basis if applicable."""
+        if self.account_type == AccountType.GENERIC:
+            if self.current_savings > 0:
+                cost_basis_withdrawn = self.cost_basis * (amount / self.current_savings)
+                self.cost_basis = max(
+                    Decimal("0"), self.cost_basis - cost_basis_withdrawn
+                )
+            else:
+                self.cost_basis = Decimal("0")
+        self.current_savings = max(Decimal("0"), self.current_savings - amount)
 
-    def post_withdraw_update(
-        self, withdrawal_pre_tax: Decimal, remaining_savings: Decimal
-    ) -> None:
-        """Invoked after a withdrawal is made to adjust account state.
-
-        Overridden in BrokerageAccount to reduce the cost basis proportionally.
-        """
-
-    def _compound_monthly(self, current_savings: Decimal) -> Decimal:
+    def compound_accumulation_month(self) -> None:
         """Helper to compound investment return monthly based on compound frequency/type."""
         if self.compound_frequency != Frequency.MONTHLY:
-            return current_savings
+            return
 
         if self.compound_type == MonthlyCompoundType.DIVIDE:
             rate = self.annual_investment_return / Decimal("12")
-            return current_savings * (Decimal("1") + rate)
+            self.current_savings *= Decimal("1") + rate
         elif self.compound_type == MonthlyCompoundType.ROOT:
             rate_root = (Decimal("1") + self.annual_investment_return) ** (
                 Decimal("1") / Decimal("12")
             )
-            return current_savings * rate_root
-        return current_savings
+            self.current_savings *= rate_root
+
+    def compound_accumulation_year(self) -> None:
+        """Compounds investment return annually if compound frequency is annual."""
+        if self.compound_frequency == Frequency.ANNUALLY:
+            self.current_savings *= Decimal("1") + self.annual_investment_return
+
+    def compound_retirement_month(self, retirement_months: int) -> None:
+        """Applies compounding returns to the account during retirement."""
+        if self.compound_frequency == Frequency.MONTHLY:
+            if self.compound_type == MonthlyCompoundType.DIVIDE:
+                rate = self.annual_retirement_return / Decimal("12")
+                self.current_savings *= Decimal("1") + rate
+            elif self.compound_type == MonthlyCompoundType.ROOT:
+                rate_root = (Decimal("1") + self.annual_retirement_return) ** (
+                    Decimal("1") / Decimal("12")
+                )
+                self.current_savings *= rate_root
+        elif (
+            self.compound_frequency == Frequency.ANNUALLY
+            and (retirement_months + 1) % 12 == 0
+        ):
+            self.current_savings *= Decimal("1") + self.annual_retirement_return
 
     def _get_monthly_contribution(self, year: int, month: int) -> Decimal:
         """Helper to compute the contribution for a given month, accounting for annual increase."""
@@ -129,26 +164,23 @@ class Account:
 
         Appends yearly data points to graph_labels and graph_savings_values.
         """
+        self.current_savings = current_savings
         for year in range(self.owner.retirement_age - self.owner.current_age):
             for month in range(12):
-                current_savings = self._compound_monthly(current_savings)
+                self.compound_accumulation_month()
                 contribution = self._get_monthly_contribution(year, month)
                 if contribution > 0:
-                    current_savings += contribution
                     self.add_contribution(contribution)
 
             # yearly addition to investment account
             contribution = self._get_annual_contribution(year)
             if contribution > 0:
-                current_savings += contribution
                 self.add_contribution(contribution)
 
             # compounding yearly
-            if self.compound_frequency == Frequency.ANNUALLY:
-                current_savings *= Decimal("1") + self.annual_investment_return
+            self.compound_accumulation_year()
 
             graph_labels.append(self.owner.current_age + year)
-            graph_savings_values.append(current_savings)
+            graph_savings_values.append(self.current_savings)
 
-        self.current_savings = current_savings
-        return current_savings
+        return self.current_savings
