@@ -72,32 +72,24 @@ class Account:
         self.compound_type: MonthlyCompoundType = compound_type
         self.account_type: AccountType = account_type
 
-        # Cost basis tracking is specific to generic (brokerage) accounts
-        if self.account_type == AccountType.GENERIC:
-            self.cost_basis: Decimal = (
-                to_decimal(cost_basis) if cost_basis is not None else Decimal("0")
-            )
-            self.initial_cost_basis: Decimal = self.cost_basis
-        else:
-            self.cost_basis = Decimal("0")
-            self.initial_cost_basis = Decimal("0")
+        # Cost basis tracking
+        self.cost_basis: Decimal = (
+            to_decimal(cost_basis) if cost_basis is not None else Decimal("0")
+        )
+        self.initial_cost_basis: Decimal = self.cost_basis
 
     def add_contribution(self, amount: Decimal) -> None:
-        """Adds a contribution to the account, increasing savings and cost basis if applicable."""
+        """Adds a contribution to the account, increasing savings and cost basis."""
         self.current_savings += amount
-        if self.account_type == AccountType.GENERIC:
-            self.cost_basis += amount
+        self.cost_basis += amount
 
     def withdraw(self, amount: Decimal) -> None:
-        """Deducts a pre-tax withdrawal amount from the account, adjusting cost basis if applicable."""
-        if self.account_type == AccountType.GENERIC:
-            if self.current_savings > 0:
-                cost_basis_withdrawn = self.cost_basis * (amount / self.current_savings)
-                self.cost_basis = max(
-                    Decimal("0"), self.cost_basis - cost_basis_withdrawn
-                )
-            else:
-                self.cost_basis = Decimal("0")
+        """Deducts a pre-tax withdrawal amount from the account, adjusting cost basis."""
+        if self.current_savings > 0:
+            cost_basis_withdrawn = self.cost_basis * (amount / self.current_savings)
+            self.cost_basis = max(Decimal("0"), self.cost_basis - cost_basis_withdrawn)
+        else:
+            self.cost_basis = Decimal("0")
         self.current_savings = max(Decimal("0"), self.current_savings - amount)
 
     def compound_accumulation_month(self) -> None:

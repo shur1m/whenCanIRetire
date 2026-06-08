@@ -123,8 +123,7 @@ class RetirementSimulator:
             account_values[name] = []
             account.current_savings = account.initial_savings
 
-            if account.account_type == AccountType.GENERIC:
-                account.cost_basis = account.initial_cost_basis
+            account.cost_basis = account.initial_cost_basis
 
         return account_labels, account_values
 
