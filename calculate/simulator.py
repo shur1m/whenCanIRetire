@@ -200,9 +200,10 @@ class RetirementSimulator:
         months_since_today: int,
         inflation_factor: Decimal,
     ) -> Tuple[Dict[str, Decimal], Dict[str, Decimal]]:
-        """Uses a fixed-point iteration solver to find the pre-tax withdrawals that satisfy post-tax targets.
+        """Calculates pre-tax withdrawals sequentially from each account.
 
-        Handles standard deduction application and stacking capital gains on top of ordinary income.
+        Draws from accounts one by one in priority order, solving for each account's
+        pre-tax amount using binary search while stacking taxes on top of previous withdrawals.
         """
 
         # Determine the priority order of accounts
@@ -219,100 +220,116 @@ class RetirementSimulator:
         accounts_in_order = sorted(self.accounts.items(), key=get_drawdown_priority)
 
         # Target monthly post-tax expense inflated for this month
-        inflated_post_tax = _adjust_for_inflation(
+        remaining_net = _adjust_for_inflation(
             self.user.annual_retirement_post_tax_expense / Decimal("12"),
             months_since_today,
             self.config,
         )
 
-        # Initialize solver estimates
-        W_pre = {name: Decimal("0") for name in self.accounts}
         W_capped = {name: Decimal("0") for name in self.accounts}
         tax_allocated = {name: Decimal("0") for name in self.accounts}
 
-        for _ in range(20):
-            # 1. Cap estimates by current savings
-            for name in self.accounts:
-                W_capped[name] = min(W_pre[name], savings[name])
+        # Running total of withdrawals in this month (for tax stacking)
+        total_trad_withdrawn = Decimal("0")
+        total_cap_withdrawn = Decimal("0")
 
-            # 2. Compute aggregate tax for the current capped withdrawals
-            total_trad_withdrawal = sum(
-                W_capped[name]
-                for name, acc in self.accounts.items()
-                if acc.account_type == AccountType.TRADITIONAL
-            )
-            Y_ord_real = total_trad_withdrawal * 12 / inflation_factor
-
-            total_brokerage_cap_gains = Decimal("0")
-            gain_ratio = {}
-            for name, acc in self.accounts.items():
-                if acc.account_type == AccountType.GENERIC:
-                    from utils.parameters import BrokerageAccount
-
-                    if isinstance(acc, BrokerageAccount) and savings[name] > 0:
-                        g_ratio = max(
-                            Decimal("0"),
-                            (savings[name] - acc.cost_basis) / savings[name],
-                        )
-                    else:
-                        g_ratio = Decimal("0")
-                    gain_ratio[name] = g_ratio
-                    total_brokerage_cap_gains += W_capped[name] * g_ratio
-
-            Y_cap_real = total_brokerage_cap_gains * 12 / inflation_factor
-
-            # Calculate aggregate taxes
-            ord_tax_real, cap_tax_real = calculate_aggregate_taxes(
-                Y_ord_real, Y_cap_real, self.user, self.config
-            )
-
-            ord_tax_monthly = ord_tax_real * inflation_factor / 12
-            cap_tax_monthly = cap_tax_real * inflation_factor / 12
-
-            # Allocate taxes back to respective accounts
-            for name, acc in self.accounts.items():
-                if acc.account_type == AccountType.TRADITIONAL:
-                    if total_trad_withdrawal > 0:
-                        tax_allocated[name] = ord_tax_monthly * (
-                            W_capped[name] / total_trad_withdrawal
-                        )
-                    else:
-                        tax_allocated[name] = Decimal("0")
-                elif acc.account_type == AccountType.GENERIC:
-                    if total_brokerage_cap_gains > 0:
-                        tax_allocated[name] = cap_tax_monthly * (
-                            (W_capped[name] * gain_ratio[name])
-                            / total_brokerage_cap_gains
-                        )
-                    else:
-                        tax_allocated[name] = Decimal("0")
-                else:
-                    tax_allocated[name] = Decimal("0")
-
-            # 3. Determine the sequential net needed from each account
-            remaining_net = inflated_post_tax
-            net_needed = {name: Decimal("0") for name in self.accounts}
-            for name, acc in accounts_in_order:
-                if remaining_net <= 0:
-                    break
-                if savings[name] <= 0:
-                    continue
-
-                max_net_from_savings = max(
-                    Decimal("0"), savings[name] - tax_allocated[name]
-                )
-                net_needed[name] = min(remaining_net, max_net_from_savings)
-                remaining_net -= net_needed[name]
-
-            # 4. Update pre-tax estimates for next iteration and check difference
-            diff = Decimal("0")
-            for name in self.accounts:
-                new_val = net_needed[name] + tax_allocated[name]
-                diff += abs(W_pre[name] - new_val)
-                W_pre[name] = new_val
-
-            if diff < Decimal("0.01"):
+        for name, acc in accounts_in_order:
+            if remaining_net <= 0:
                 break
+            if savings[name] <= 0:
+                continue
+
+            # Determine the gain ratio for capital gains tax calculations (only for Brokerage)
+            g_ratio = Decimal("0")
+            if acc.account_type == AccountType.GENERIC:
+                from utils.parameters import BrokerageAccount
+
+                if isinstance(acc, BrokerageAccount) and savings[name] > 0:
+                    g_ratio = max(
+                        Decimal("0"),
+                        (savings[name] - acc.cost_basis) / savings[name],
+                    )
+
+            # Helper to calculate additional tax incurred by withdrawing a candidate pre-tax amount from this account
+            def get_marginal_tax(W_candidate: Decimal) -> Decimal:
+                # Add this candidate withdrawal to current monthly totals
+                if acc.account_type == AccountType.TRADITIONAL:
+                    new_trad = total_trad_withdrawn + W_candidate
+                    new_cap = total_cap_withdrawn
+                elif acc.account_type == AccountType.GENERIC:
+                    new_trad = total_trad_withdrawn
+                    new_cap = total_cap_withdrawn + W_candidate * g_ratio
+                else:
+                    new_trad = total_trad_withdrawn
+                    new_cap = total_cap_withdrawn
+
+                # Calculate aggregate taxes at new totals
+                ord_tax_real, cap_tax_real = calculate_aggregate_taxes(
+                    new_trad * 12 / inflation_factor,
+                    new_cap * 12 / inflation_factor,
+                    self.user,
+                    self.config,
+                )
+                total_tax_monthly = (
+                    (ord_tax_real + cap_tax_real) * inflation_factor / 12
+                )
+
+                # Calculate baseline taxes (before this account's withdrawal)
+                base_ord_tax, base_cap_tax = calculate_aggregate_taxes(
+                    total_trad_withdrawn * 12 / inflation_factor,
+                    total_cap_withdrawn * 12 / inflation_factor,
+                    self.user,
+                    self.config,
+                )
+                base_tax_monthly = (base_ord_tax + base_cap_tax) * inflation_factor / 12
+
+                return total_tax_monthly - base_tax_monthly
+
+            # 1. Non-taxable accounts (Roth, HSA, etc.) require no tax calculations
+            if acc.account_type not in (AccountType.TRADITIONAL, AccountType.GENERIC):
+                W = min(remaining_net, savings[name])
+                W_capped[name] = W
+                tax_allocated[name] = Decimal("0")
+                remaining_net -= W
+            else:
+                # 2. Taxable accounts: solve for the pre-tax withdrawal W using binary search
+                left = Decimal("0")
+                right = savings[name]
+                best_W = savings[name]
+                best_tax = get_marginal_tax(savings[name])
+
+                # If the entire remaining savings after tax cannot cover remaining_net, deplete the account
+                if savings[name] - best_tax <= remaining_net:
+                    W_capped[name] = savings[name]
+                    tax_allocated[name] = best_tax
+                    remaining_net -= savings[name] - best_tax
+                else:
+                    # Binary search for the exact W where W - get_marginal_tax(W) == remaining_net
+                    for _ in range(20):
+                        mid = (left + right) / Decimal("2")
+                        tax = get_marginal_tax(mid)
+                        net = mid - tax
+                        if abs(net - remaining_net) < Decimal("0.01"):
+                            best_W = mid
+                            best_tax = tax
+                            break
+                        elif net < remaining_net:
+                            left = mid
+                        else:
+                            right = mid
+                    else:
+                        best_W = (left + right) / Decimal("2")
+                        best_tax = get_marginal_tax(best_W)
+
+                    W_capped[name] = best_W
+                    tax_allocated[name] = best_tax
+                    remaining_net = Decimal("0")
+
+            # Update monthly totals with the finalized withdrawals
+            if acc.account_type == AccountType.TRADITIONAL:
+                total_trad_withdrawn += W_capped[name]
+            elif acc.account_type == AccountType.GENERIC:
+                total_cap_withdrawn += W_capped[name] * g_ratio
 
         return W_capped, tax_allocated
 
