@@ -4,6 +4,7 @@ from utils.parameters import Person
 from utils.globals import GlobalParameters, calculate_progressive_tax
 from utils.enums import Frequency, MonthlyCompoundType, AccountType
 from utils.accounts.base import Account, _adjust_for_inflation
+from utils.accounts.brokerage import BrokerageAccount
 from calculate.state_tax import get_state_tax_calculator
 
 
@@ -125,8 +126,6 @@ class RetirementSimulator:
             account.current_savings = account.initial_savings
             savings[name] = account.initial_savings
 
-            from utils.accounts.brokerage import BrokerageAccount
-
             if isinstance(account, BrokerageAccount):
                 if hasattr(account, "initial_cost_basis"):
                     account.cost_basis = account.initial_cost_basis
@@ -221,8 +220,6 @@ class RetirementSimulator:
         # Determine the gain ratio for capital gains tax calculations (only for Brokerage)
         g_ratio = Decimal("0")
         if acc.account_type == AccountType.GENERIC:
-            from utils.parameters import BrokerageAccount
-
             if isinstance(acc, BrokerageAccount) and account_savings > 0:
                 g_ratio = max(
                     Decimal("0"),
@@ -340,8 +337,6 @@ class RetirementSimulator:
             if acc.account_type == AccountType.TRADITIONAL:
                 total_trad_withdrawn += W
             elif acc.account_type == AccountType.GENERIC:
-                from utils.parameters import BrokerageAccount
-
                 # Determine gain ratio for tax stacking
                 g_ratio = Decimal("0")
                 if isinstance(acc, BrokerageAccount) and savings[name] > 0:
