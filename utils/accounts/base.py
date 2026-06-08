@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Optional, Union, TYPE_CHECKING
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 from utils.enums import Frequency, MonthlyCompoundType, AccountType
 
 if TYPE_CHECKING:
@@ -109,93 +109,6 @@ class Account:
         Overridden in BrokerageAccount to reduce the cost basis proportionally.
         """
 
-    def get_pre_tax_withdrawal(
-        self,
-        post_tax_income: Decimal,
-        current_savings: Decimal,
-        config: GlobalParameters,
-        inflation_factor: Decimal,
-    ) -> Decimal:
-        """Calculates the pre-tax monthly withdrawal required to meet a post-tax target.
-
-        Uses the Template Method pattern by invoking `calculate_withdrawal_tax`.
-        Default behavior (Roth, HSA) has 0% tax, so pre-tax withdrawal equals post-tax target.
-        """
-        return post_tax_income
-
-    def calculate_withdrawal_tax(
-        self,
-        pre_tax_annual_real: Decimal,
-        current_savings: Decimal,
-        config: GlobalParameters,
-    ) -> Decimal:
-        """Calculates and returns the annual real tax on a pre-tax withdrawal.
-
-        Part of the Template Method pattern for binary search.
-        Defaults to Decimal("0") (Roth and HSA). Overridden in Traditional and Brokerage.
-        """
-        return Decimal("0")
-
-    def _binary_search_pre_tax_withdrawal(
-        self,
-        post_tax_income: Decimal,
-        current_savings: Decimal,
-        config: GlobalParameters,
-        inflation_factor: Decimal,
-    ) -> Decimal:
-        """Helper method to run a binary search to find the pre-tax monthly withdrawal.
-
-        Solves for: pre_tax_income - tax_monthly(pre_tax_income) == post_tax_income.
-        Calls `calculate_withdrawal_tax` polymorphically to compute the tax.
-        """
-        left = post_tax_income
-        right = post_tax_income * Decimal("5")
-        pre_tax_income = right
-
-        while abs(right - left) > Decimal("0.01"):
-            pre_tax_income = left + (right - left) / Decimal("2")
-            pre_tax_annual = pre_tax_income * Decimal("12")
-            pre_tax_annual_real = pre_tax_annual / inflation_factor
-
-            tax_annual_real = self.calculate_withdrawal_tax(
-                pre_tax_annual_real, current_savings, config
-            )
-
-            tax_annual = tax_annual_real * inflation_factor
-            tax_monthly = tax_annual / Decimal("12")
-            net_monthly = pre_tax_income - tax_monthly
-
-            if net_monthly > post_tax_income:
-                right = pre_tax_income
-            else:
-                left = pre_tax_income
-
-        return pre_tax_income.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-    def withdraw(
-        self,
-        net_amount: Decimal,
-        current_savings: Decimal,
-        config: GlobalParameters,
-        inflation_factor: Decimal,
-    ) -> tuple[Decimal, Decimal]:
-        """Performs a withdrawal from the account for a target net amount.
-
-        Updates account state and returns (withdrawal_pre_tax, remaining_savings).
-        """
-        pre_tax_amount = self.get_pre_tax_withdrawal(
-            net_amount, current_savings, config, inflation_factor
-        )
-        if current_savings < pre_tax_amount:
-            withdrawal_pre_tax = current_savings
-            remaining_savings = Decimal("0")
-        else:
-            withdrawal_pre_tax = pre_tax_amount
-            remaining_savings = current_savings - pre_tax_amount
-
-        self.post_withdraw_update(withdrawal_pre_tax, remaining_savings)
-        return withdrawal_pre_tax, remaining_savings
-
     def _compound_monthly(self, current_savings: Decimal) -> Decimal:
         """Helper to compound investment return monthly based on compound frequency/type."""
         if self.compound_frequency != Frequency.MONTHLY:
@@ -262,75 +175,3 @@ class Account:
 
         self.current_savings = current_savings
         return current_savings
-
-    def simulate_retirement(
-        self,
-        current_savings: Decimal,
-        graph_labels: list[int],
-        graph_savings_values: list[Decimal],
-        config: GlobalParameters,
-    ) -> None:
-        """Simulates drawdown of the account during the retirement phase.
-
-        Appends yearly data points to graph_labels and graph_savings_values.
-        """
-        retirement_months = 0
-        post_tax_annual_expense = self.owner.annual_retirement_post_tax_expense
-        post_tax_monthly_withdrawal = post_tax_annual_expense / Decimal("12")
-
-        while (
-            current_savings > Decimal("0")
-            and self.owner.retirement_age + retirement_months // 12
-            < self.owner.lifespan
-        ):
-            months_since_today = (
-                self.owner.retirement_age - self.owner.current_age
-            ) * 12 + retirement_months
-
-            inflated_post_tax_monthly = _adjust_for_inflation(
-                post_tax_monthly_withdrawal,
-                months_since_today,
-                config,
-            )
-
-            inflation_factor = _adjust_for_inflation(
-                Decimal("1"), months_since_today, config
-            )
-
-            withdrawal_pre_tax, remaining_savings = self.withdraw(
-                inflated_post_tax_monthly,
-                current_savings,
-                config,
-                inflation_factor,
-            )
-
-            current_savings = remaining_savings
-
-            if self.compound_frequency == Frequency.MONTHLY:
-                if self.compound_type == MonthlyCompoundType.DIVIDE:
-                    rate = self.annual_retirement_return / Decimal("12")
-                    current_savings *= Decimal("1") + rate
-                elif self.compound_type == MonthlyCompoundType.ROOT:
-                    rate_root = (Decimal("1") + self.annual_retirement_return) ** (
-                        Decimal("1") / Decimal("12")
-                    )
-                    current_savings *= rate_root
-            elif (
-                self.compound_frequency == Frequency.ANNUALLY
-                and (retirement_months + 1) % 12 == 0
-            ):
-                current_savings *= Decimal("1") + self.annual_retirement_return
-
-            retirement_months += 1
-
-            if retirement_months % 12 == 0:
-                graph_labels.append(self.owner.retirement_age + retirement_months // 12)
-                graph_savings_values.append(current_savings)
-
-        if current_savings == Decimal("0"):
-            last_year = graph_labels[-1] if graph_labels else self.owner.retirement_age
-            next_year = last_year + 1
-            graph_labels.append(next_year)
-            graph_savings_values.append(Decimal("0"))
-
-        self.current_savings = current_savings

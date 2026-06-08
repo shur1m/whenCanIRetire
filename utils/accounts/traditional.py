@@ -7,7 +7,6 @@ from utils.accounts.base import Account
 
 if TYPE_CHECKING:
     from utils.parameters import Person
-    from utils.globals import GlobalParameters
 
 
 class TraditionalAccount(Account):
@@ -38,27 +37,4 @@ class TraditionalAccount(Account):
             compound_frequency=compound_frequency,
             compound_type=compound_type,
             account_type=account_type,
-        )
-
-    def calculate_withdrawal_tax(
-        self,
-        pre_tax_annual_real: Decimal,
-        current_savings: Decimal,
-        config: GlobalParameters,
-    ) -> Decimal:
-        from calculate.retirement import calculate_retirement_withdrawal_tax
-
-        return calculate_retirement_withdrawal_tax(
-            pre_tax_annual_real, self, config, is_capital_gains=False
-        )
-
-    def get_pre_tax_withdrawal(
-        self,
-        post_tax_income: Decimal,
-        current_savings: Decimal,
-        config: GlobalParameters,
-        inflation_factor: Decimal,
-    ) -> Decimal:
-        return self._binary_search_pre_tax_withdrawal(
-            post_tax_income, current_savings, config, inflation_factor
         )

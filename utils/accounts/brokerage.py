@@ -7,7 +7,6 @@ from utils.accounts.base import Account, to_decimal
 
 if TYPE_CHECKING:
     from utils.parameters import Person
-    from utils.globals import GlobalParameters
 
 
 class BrokerageAccount(Account):
@@ -58,33 +57,3 @@ class BrokerageAccount(Account):
             self.cost_basis = max(Decimal("0"), self.cost_basis - cost_basis_withdrawn)
         else:
             self.cost_basis = Decimal("0")
-
-    def calculate_withdrawal_tax(
-        self,
-        pre_tax_annual_real: Decimal,
-        current_savings: Decimal,
-        config: GlobalParameters,
-    ) -> Decimal:
-        from calculate.retirement import calculate_retirement_withdrawal_tax
-
-        gain_ratio = Decimal("0")
-        if current_savings > 0:
-            gain_ratio = max(
-                Decimal("0"),
-                (current_savings - self.cost_basis) / current_savings,
-            )
-        gains_annual_real = pre_tax_annual_real * gain_ratio
-        return calculate_retirement_withdrawal_tax(
-            gains_annual_real, self, config, is_capital_gains=True
-        )
-
-    def get_pre_tax_withdrawal(
-        self,
-        post_tax_income: Decimal,
-        current_savings: Decimal,
-        config: GlobalParameters,
-        inflation_factor: Decimal,
-    ) -> Decimal:
-        return self._binary_search_pre_tax_withdrawal(
-            post_tax_income, current_savings, config, inflation_factor
-        )
