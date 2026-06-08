@@ -44,26 +44,12 @@ class Account:
 
     @classmethod
     def create(cls, *args, **kwargs) -> Account:
-        """Dynamic factory method to instantiate the correct subclass based on account_type."""
-        account_type = kwargs.get("account_type")
-        if account_type is None and len(args) >= 12:
-            account_type = args[11]
-        if account_type is None:
-            account_type = AccountType.GENERIC
+        """Dynamic factory method to instantiate the correct subclass based on account_type.
 
-        from utils.accounts.traditional import TraditionalAccount
-        from utils.accounts.roth import RothAccount
-        from utils.accounts.hsa import HsaAccount
-        from utils.accounts.brokerage import BrokerageAccount
-
-        if account_type == AccountType.TRADITIONAL:
-            return TraditionalAccount(*args, **kwargs)
-        elif account_type == AccountType.ROTH:
-            return RothAccount(*args, **kwargs)
-        elif account_type == AccountType.HSA:
-            return HsaAccount(*args, **kwargs)
-        else:
-            return BrokerageAccount(*args, **kwargs)
+        This implementation is overridden dynamically in utils/accounts/__init__.py
+        to avoid circular top-level imports.
+        """
+        raise NotImplementedError()
 
     def __init__(
         self,

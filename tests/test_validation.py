@@ -1,6 +1,11 @@
 import pytest
 from pydantic import ValidationError
 from utils.schemas import ParametersSchema, TaxSchema
+from utils.parameters import Person
+from utils.enums import Filing, State
+from utils.globals import GlobalParameters
+from decimal import Decimal
+import copy
 
 
 def test_invalid_parameters_json_missing_current_year():
@@ -60,12 +65,6 @@ def test_invalid_tax_json_missing_federal_tax():
 
 
 def test_missing_state_tax_raises_value_error(tax_data):
-    from utils.parameters import Person
-    from utils.enums import Filing, State
-    from utils.globals import GlobalParameters
-    from decimal import Decimal
-    import copy
-
     user = Person(
         current_age=30,
         retirement_age=65,

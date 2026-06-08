@@ -18,9 +18,12 @@ from decimal import Decimal
 
 from utils.accounts.base import _adjust_for_inflation
 from utils.globals import GlobalParameters
-from utils.parameters import Person, Account
+from utils.parameters import Person, Account, BrokerageAccount
 from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State
 from utils.schemas import TaxSchema
+from calculate.simulator import RetirementSimulator, calculate_aggregate_taxes
+from calculate.state_tax import get_state_tax_calculator
+from calculate.aggregate import calculate_annual_income_tax
 
 # Load and validate tax tables once at module scope to eliminate file I/O overhead in tests
 with open("config/tax.json") as _f:
@@ -85,8 +88,6 @@ def _make_person_and_account(
 def _simulate(
     account: Account, config: GlobalParameters
 ) -> tuple[list[int], list[Decimal]]:
-    from calculate.simulator import RetirementSimulator
-
     account.owner.accounts = {"temp_account": account}
     simulator = RetirementSimulator(account.owner, config)
     res = simulator.simulate()
@@ -375,7 +376,6 @@ class TestSimulateRetirement:
             account_type=account_type,
         )
         user.add_account(account, "temp_account")
-        from calculate.simulator import RetirementSimulator
 
         simulator = RetirementSimulator(user, config)
         res = simulator.simulate()
@@ -527,8 +527,6 @@ class TestSimulateRetirement:
         )
         config = _make_config(2024)
         config.inflation_rate = Decimal("0.0")
-        from utils.parameters import BrokerageAccount
-
         account = Account.create(
             owner=user,
             initial_savings=100_000,
@@ -541,8 +539,6 @@ class TestSimulateRetirement:
         )
         assert isinstance(account, BrokerageAccount)
         user.add_account(account, "Brokerage")
-
-        from calculate.simulator import RetirementSimulator
 
         simulator = RetirementSimulator(user, config)
         simulator.simulate()
@@ -575,8 +571,6 @@ class TestSimulateRetirement:
         )
         user.accounts = {"Traditional": account_trad}
 
-        from calculate.simulator import RetirementSimulator
-
         simulator = RetirementSimulator(user, config)
 
         # 1. Test at inflation_factor = 1.0 (real dollars, month 0)
@@ -603,7 +597,6 @@ class TestSimulateRetirement:
         ), f"Expected progressive pre-tax inflated to be {expected_inflated}, got {pre_tax_inflated}"
 
         # Test GENERIC account (capital gains tax)
-        from utils.parameters import BrokerageAccount
 
         account_generic = Account.create(
             owner=user,
@@ -753,7 +746,6 @@ class TestSimulate:
         # Initial basis = 5000.
         # Contributions: 3 years * 12 months * 1000/month = 36000.
         # Expected basis = 41000.
-        from utils.parameters import BrokerageAccount
 
         assert isinstance(account, BrokerageAccount)
         assert account.cost_basis == Decimal("41000")
@@ -766,7 +758,6 @@ class TestSimulate:
         # Under 2025 Single: 0% up to 48,350. Standard deduction is 15,750.
         # Taxable gain = 60,000 - 15,750 = 44,250.
         # Since 44,250 <= 48,350, it is all taxed at 0%. Total tax = 0.
-        from calculate.simulator import calculate_aggregate_taxes
 
         ord_tax, cap_tax = calculate_aggregate_taxes(
             Decimal("0"), Decimal("60000"), user_2025, config_2025
@@ -791,7 +782,6 @@ class TestSimulate:
 
         # Texas
         user_tx = Person(state_of_residence=State.TEXAS)
-        from calculate.state_tax import get_state_tax_calculator
 
         calculator_tx = get_state_tax_calculator(State.TEXAS)
         tx_tax = calculator_tx.calculate_capital_gains_tax(
@@ -819,7 +809,6 @@ class TestSimulate:
 
         # Using a dummy state name to trigger fallback
         unimplemented_state = "New York"
-        from calculate.state_tax import get_state_tax_calculator
 
         with caplog.at_level(logging.WARNING):
             get_state_tax_calculator(unimplemented_state)  # type: ignore
@@ -832,7 +821,6 @@ class TestSimulate:
         user_ca = Person(state_of_residence=State.CALIFORNIA, filing=Filing.INDIVIDUAL)
 
         # Calculate retirement withdrawal tax for 100,000 pre-tax
-        from calculate.simulator import calculate_aggregate_taxes
 
         ord_tax, cap_tax = calculate_aggregate_taxes(
             Decimal("100000"), Decimal("0"), user_ca, config_2024
@@ -840,7 +828,6 @@ class TestSimulate:
         ret_tax = ord_tax + cap_tax
 
         # Calculate standard tax on the same amount (includes FICA/SDI)
-        from calculate.aggregate import calculate_annual_income_tax
 
         user_ca.pre_tax_income = Decimal("100000")
         std_tax = calculate_annual_income_tax(user_ca, config_2024)
@@ -877,8 +864,6 @@ class TestSimulate:
         )
         user.add_account(acc1, "Traditional_1")
         user.add_account(acc2, "Traditional_2")
-
-        from calculate.simulator import RetirementSimulator
 
         simulator = RetirementSimulator(user, config)
         results = simulator.simulate()
@@ -919,8 +904,6 @@ class TestSimulate:
         )
         user.add_account(acc_trad, "Traditional")
         user.add_account(acc_brok, "Brokerage")
-
-        from calculate.simulator import RetirementSimulator
 
         simulator = RetirementSimulator(user, config)
         results = simulator.simulate()
