@@ -18,7 +18,7 @@ from decimal import Decimal
 
 from utils.accounts.base import _adjust_for_inflation
 from utils.globals import GlobalParameters
-from utils.parameters import Person, Account, BrokerageAccount
+from utils.parameters import Person, Account, BrokerageAccount, create_account
 from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State
 from utils.schemas import TaxSchema
 from calculate.simulator import RetirementSimulator, calculate_aggregate_taxes
@@ -69,7 +69,7 @@ def _make_person_and_account(
         state_of_residence=state_of_residence,
     )
     config = _make_config(2024)
-    account = Account.create(
+    account = create_account(
         owner=user,
         initial_savings=initial_savings,
         cost_basis=cost_basis,
@@ -366,7 +366,7 @@ class TestSimulateRetirement:
         )
         config = _make_config(2024)
         config.inflation_rate = Decimal(str(inflation_rate))
-        account = Account.create(
+        account = create_account(
             owner=user,
             initial_savings=initial_savings,
             regular_investment_dollar=Decimal("0"),
@@ -527,7 +527,7 @@ class TestSimulateRetirement:
         )
         config = _make_config(2024)
         config.inflation_rate = Decimal("0.0")
-        account = Account.create(
+        account = create_account(
             owner=user,
             initial_savings=100_000,
             cost_basis=Decimal("150000"),
@@ -564,7 +564,7 @@ class TestSimulateRetirement:
         config = _make_config(2024)
 
         # Test TRADITIONAL account (progressive ordinary income tax)
-        account_trad = Account.create(
+        account_trad = create_account(
             owner=user,
             initial_savings=1_000_000,
             account_type=AccountType.TRADITIONAL,
@@ -598,7 +598,7 @@ class TestSimulateRetirement:
 
         # Test GENERIC account (capital gains tax)
 
-        account_generic = Account.create(
+        account_generic = create_account(
             owner=user,
             initial_savings=1_000_000,
             account_type=AccountType.GENERIC,
@@ -850,13 +850,13 @@ class TestSimulate:
         )
         config = _make_config(year=2024)
 
-        acc1 = Account.create(
+        acc1 = create_account(
             owner=user,
             initial_savings=500_000,
             annual_retirement_return=0.0,
             account_type=AccountType.TRADITIONAL,
         )
-        acc2 = Account.create(
+        acc2 = create_account(
             owner=user,
             initial_savings=500_000,
             annual_retirement_return=0.0,
@@ -889,13 +889,13 @@ class TestSimulate:
         )
         config = _make_config(year=2024)
 
-        acc_trad = Account.create(
+        acc_trad = create_account(
             owner=user,
             initial_savings=500_000,
             annual_retirement_return=0.0,
             account_type=AccountType.TRADITIONAL,
         )
-        acc_brok = Account.create(
+        acc_brok = create_account(
             owner=user,
             initial_savings=500_000,
             cost_basis=0,

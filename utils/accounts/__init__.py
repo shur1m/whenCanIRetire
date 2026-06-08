@@ -6,8 +6,8 @@ from utils.accounts.brokerage import BrokerageAccount
 from utils.enums import AccountType
 
 
-def _create_account(cls, *args, **kwargs) -> Account:
-    """Dynamic factory method to instantiate the correct subclass based on account_type."""
+def create_account(*args, **kwargs) -> Account:
+    """Dynamic factory function to instantiate the correct subclass based on account_type."""
     account_type = kwargs.get("account_type")
     if account_type is None and len(args) >= 12:
         account_type = args[11]
@@ -24,10 +24,9 @@ def _create_account(cls, *args, **kwargs) -> Account:
         return BrokerageAccount(*args, **kwargs)
 
 
-Account.create = classmethod(_create_account)  # type: ignore
-
 __all__ = [
     "Account",
+    "create_account",
     "to_decimal",
     "TraditionalAccount",
     "RothAccount",

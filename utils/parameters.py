@@ -5,6 +5,7 @@ from decimal import Decimal
 from utils.enums import Filing, Frequency, AccountType, State
 from utils.accounts import (
     Account,
+    create_account,
     to_decimal,
     TraditionalAccount,
     RothAccount,
@@ -15,6 +16,7 @@ from utils.accounts import (
 __all__ = [
     "Person",
     "Account",
+    "create_account",
     "to_decimal",
     "TraditionalAccount",
     "RothAccount",
@@ -75,7 +77,7 @@ class Person:
     def create_account(
         self, account_name: Optional[str] = None, **account_kwargs
     ) -> Account:
-        account = Account.create(owner=self, **account_kwargs)
+        account = create_account(self, **account_kwargs)
         self.add_account(account, account_name)
         return account
 

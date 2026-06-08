@@ -42,15 +42,6 @@ class Account:
     HsaAccount, BrokerageAccount) based on the account_type parameter.
     """
 
-    @classmethod
-    def create(cls, *args, **kwargs) -> Account:
-        """Dynamic factory method to instantiate the correct subclass based on account_type.
-
-        This implementation is overridden dynamically in utils/accounts/__init__.py
-        to avoid circular top-level imports.
-        """
-        raise NotImplementedError()
-
     def __init__(
         self,
         owner: Person,
