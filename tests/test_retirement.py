@@ -21,6 +21,9 @@ from utils.globals import GlobalParameters
 from utils.parameters import Person, Account
 from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State
 from utils.schemas import TaxSchema
+from calculate.simulator import RetirementSimulator, calculate_aggregate_taxes
+from calculate.state_tax import get_state_tax_calculator
+from calculate.aggregate import calculate_annual_income_tax
 
 # Load and validate tax tables once at module scope to eliminate file I/O overhead in tests
 with open("config/tax.json") as _f:
@@ -62,6 +65,7 @@ def _make_person_and_account(
         retirement_age=retirement_age,
         lifespan=lifespan,
         pre_tax_income=pre_tax_income,
+        annual_retirement_post_tax_expense=annual_retirement_post_tax_expense,
         state_of_residence=state_of_residence,
     )
     config = _make_config(2024)
@@ -74,12 +78,20 @@ def _make_person_and_account(
         annual_investment_increase=annual_investment_increase,
         annual_investment_return=annual_investment_return,
         annual_retirement_return=annual_retirement_return,
-        annual_retirement_post_tax_expense=annual_retirement_post_tax_expense,
         compound_frequency=compound_frequency,
         compound_type=compound_type,
         account_type=account_type,
     )
     return user, account, config
+
+
+def _simulate(
+    account: Account, config: GlobalParameters
+) -> tuple[list[int], list[Decimal]]:
+    account.owner.accounts = {"temp_account": account}
+    simulator = RetirementSimulator(account.owner, config)
+    res = simulator.simulate()
+    return res["temp_account"]
 
 
 # ===========================================================================
@@ -342,27 +354,36 @@ class TestSimulateRetirement:
         annual_retirement_return=0.0,
         account_type=AccountType.GENERIC,
         compound_frequency=Frequency.MONTHLY,
+        inflation_rate=Decimal("0.03"),
     ):
         user = Person(
             current_age=current_age,
             retirement_age=retirement_age,
             lifespan=lifespan,
             pre_tax_income=115_000,
+            annual_retirement_post_tax_expense=annual_expense,
             state_of_residence=State.TEXAS,
         )
         config = _make_config(2024)
+        config.inflation_rate = Decimal(str(inflation_rate))
         account = Account(
             owner=user,
             initial_savings=initial_savings,
-            annual_retirement_post_tax_expense=annual_expense,
+            regular_investment_dollar=Decimal("0"),
+            annual_investment_return=Decimal("0"),
             annual_retirement_return=annual_retirement_return,
             compound_frequency=compound_frequency,
             account_type=account_type,
         )
-        labels = []
-        values = []
-        account.simulate_retirement(initial_savings, labels, values, config)
-        return labels, values
+        user.add_account(account, "temp_account")
+
+        simulator = RetirementSimulator(user, config)
+        res = simulator.simulate()
+        labels, values = res["temp_account"]
+        ret_indices = [i for i, l in enumerate(labels) if l > retirement_age]
+        ret_labels = [labels[i] for i in ret_indices]
+        ret_values = [values[i] for i in ret_indices]
+        return ret_labels, ret_values
 
     def test_runs_out_within_first_year_appends_zero(self):
         """
@@ -466,26 +487,16 @@ class TestSimulateRetirement:
         With 0% return AND 0% inflation, balance decreases by annual_expense/12 per month.
         Note: ROTH account → no pre-tax grossing-up.
         """
-        user = Person(
-            current_age=30,
-            retirement_age=40,
-            lifespan=50,
-            pre_tax_income=115_000,
-            state_of_residence=State.TEXAS,
-        )
-        config = _make_config(2024)
-        config.inflation_rate = Decimal("0.0")
-        account = Account(
-            owner=user,
+        labels, values = self._run_retirement(
             initial_savings=120_000,
-            annual_retirement_post_tax_expense=12_000,  # $1,000/month
+            annual_expense=12_000,
+            lifespan=50,
+            retirement_age=40,
+            current_age=30,
             annual_retirement_return=0.0,
-            compound_frequency=Frequency.MONTHLY,
-            account_type=AccountType.ROTH,  # no tax grossing
+            account_type=AccountType.ROTH,
+            inflation_rate=Decimal("0.0"),
         )
-        labels = []
-        values = []
-        account.simulate_retirement(Decimal("120000"), labels, values, config)
         # After 1 year (12 months) the balance should be 120,000 - 12,000 = 108,000
         assert math.isclose(
             values[0], 108_000.0, abs_tol=0.01
@@ -511,40 +522,39 @@ class TestSimulateRetirement:
             retirement_age=40,
             lifespan=41,
             pre_tax_income=115_000,
+            annual_retirement_post_tax_expense=12_000,
             state_of_residence=State.TEXAS,
         )
         config = _make_config(2024)
         config.inflation_rate = Decimal("0.0")
-        from utils.parameters import BrokerageAccount
-
         account = Account(
             owner=user,
             initial_savings=100_000,
-            annual_retirement_post_tax_expense=12_000,
+            cost_basis=Decimal("150000"),
+            regular_investment_dollar=Decimal("0"),
+            annual_investment_return=Decimal("0"),
             annual_retirement_return=0.0,
             compound_frequency=Frequency.MONTHLY,
             account_type=AccountType.GENERIC,
         )
-        assert isinstance(account, BrokerageAccount)
-        account.cost_basis = Decimal("150000")
-        labels = []
-        values = []
-        account.simulate_retirement(Decimal("100000"), labels, values, config)
+        assert account.account_type == AccountType.GENERIC
+        user.add_account(account, "Brokerage")
+
+        simulator = RetirementSimulator(user, config)
+        simulator.simulate()
+
         assert math.isclose(
             float(account.cost_basis), 132_000.0, abs_tol=1.0
         ), f"Expected cost basis of 132000.00 after 12 months, got {account.cost_basis:.2f}"
 
     def test_retirement_tax_inflation_adjustment(self):
-        """
-        Verify that tax calculations adjust for inflation so that bracket creep is avoided.
-        The pre-tax monthly income required for a target post-tax monthly income must scale
-        proportionally with the inflation factor.
-        """
+        """Verify that pre-tax calculations correctly adjust for inflation under progressive tax tables."""
         user = Person(
             current_age=30,
-            retirement_age=40,
-            lifespan=50,
+            retirement_age=65,
+            lifespan=90,
             pre_tax_income=115_000,
+            annual_retirement_post_tax_expense=60_000,  # $5,000 / month
             state_of_residence=State.TEXAS,
         )
         config = _make_config(2024)
@@ -553,60 +563,68 @@ class TestSimulateRetirement:
         account_trad = Account(
             owner=user,
             initial_savings=1_000_000,
-            annual_retirement_post_tax_expense=60_000,
             account_type=AccountType.TRADITIONAL,
         )
+        user.accounts = {"Traditional": account_trad}
 
-        # Calculate pre-tax income at inflation_factor = 1.0 (real dollars)
-        pre_tax_real = account_trad.get_pre_tax_withdrawal(
-            post_tax_income=Decimal("5000"),
-            current_savings=Decimal("1000000"),
-            config=config,
-            inflation_factor=Decimal("1.0"),
+        simulator = RetirementSimulator(user, config)
+
+        # 1. Test at inflation_factor = 1.0 (real dollars, month 0)
+        account_trad.current_savings = Decimal("1000000")
+        W_capped_1, _ = simulator._calculate_monthly_pre_tax_withdrawals(
+            months_since_today=0, inflation_factor=Decimal("1.0")
         )
+        pre_tax_real = W_capped_1["Traditional"]
 
-        # Calculate pre-tax income at inflation_factor = 1.5 (inflated dollars)
-        pre_tax_inflated = account_trad.get_pre_tax_withdrawal(
-            post_tax_income=Decimal("5000") * Decimal("1.5"),
-            current_savings=Decimal("1000000"),
-            config=config,
-            inflation_factor=Decimal("1.5"),
+        # 2. Test at inflation_factor_120 (10 years of inflation)
+        months_120 = 120
+        inflation_factor_120 = _adjust_for_inflation(Decimal("1"), months_120, config)
+        account_trad.current_savings = Decimal("1000000") * inflation_factor_120
+        W_capped_120, _ = simulator._calculate_monthly_pre_tax_withdrawals(
+            months_since_today=months_120,
+            inflation_factor=inflation_factor_120,
         )
+        pre_tax_inflated = W_capped_120["Traditional"]
 
-        expected_inflated = pre_tax_real * Decimal("1.5")
+        expected_inflated = pre_tax_real * inflation_factor_120
         assert math.isclose(
             float(pre_tax_inflated), float(expected_inflated), rel_tol=1e-5
         ), f"Expected progressive pre-tax inflated to be {expected_inflated}, got {pre_tax_inflated}"
 
         # Test GENERIC account (capital gains tax)
-        from utils.parameters import BrokerageAccount
 
         account_generic = Account(
             owner=user,
             initial_savings=1_000_000,
-            annual_retirement_post_tax_expense=60_000,
             account_type=AccountType.GENERIC,
         )
-        assert isinstance(account_generic, BrokerageAccount)
-        account_generic.cost_basis = Decimal("400000")  # gain ratio is 0.6
+        assert account_generic.account_type == AccountType.GENERIC
+        user.accounts = {"Brokerage": account_generic}
 
-        # Calculate pre-tax income at inflation_factor = 1.0 (real dollars)
-        pre_tax_real_gen = account_generic.get_pre_tax_withdrawal(
-            post_tax_income=Decimal("5000"),
-            current_savings=Decimal("1000000"),
-            config=config,
-            inflation_factor=Decimal("1.0"),
+        # For the gain ratio to be 0.6, savings is 1,000,000, cost_basis is 400,000.
+        # At month 0 (inflation factor 1.0):
+        account_generic.current_savings = Decimal("1000000")
+        account_generic.cost_basis = Decimal("400000")
+        simulator_gen = RetirementSimulator(user, config)
+
+        W_capped_gen_0, _ = simulator_gen._calculate_monthly_pre_tax_withdrawals(
+            months_since_today=0, inflation_factor=Decimal("1.0")
         )
+        pre_tax_real_gen = W_capped_gen_0["Brokerage"]
 
-        # Calculate pre-tax income at inflation_factor = 1.8 (inflated dollars)
-        pre_tax_inflated_gen = account_generic.get_pre_tax_withdrawal(
-            post_tax_income=Decimal("5000") * Decimal("1.8"),
-            current_savings=Decimal("1000000"),
-            config=config,
-            inflation_factor=Decimal("1.8"),
+        # At month 240 (20 years of inflation):
+        months_240 = 240
+        inflation_factor_240 = _adjust_for_inflation(Decimal("1"), months_240, config)
+        account_generic.current_savings = Decimal("1000000") * inflation_factor_240
+        account_generic.cost_basis = Decimal("400000") * inflation_factor_240
+
+        W_capped_gen_240, _ = simulator_gen._calculate_monthly_pre_tax_withdrawals(
+            months_since_today=months_240,
+            inflation_factor=inflation_factor_240,
         )
+        pre_tax_inflated_gen = W_capped_gen_240["Brokerage"]
 
-        expected_inflated_gen = pre_tax_real_gen * Decimal("1.8")
+        expected_inflated_gen = pre_tax_real_gen * inflation_factor_240
         assert math.isclose(
             float(pre_tax_inflated_gen), float(expected_inflated_gen), rel_tol=1e-5
         ), f"Expected capital gains pre-tax inflated to be {expected_inflated_gen}, got {pre_tax_inflated_gen}"
@@ -631,7 +649,7 @@ class TestSimulate:
             annual_retirement_return=0.05,
             account_type=AccountType.ROTH,
         )
-        labels, values = account.simulate(config)
+        labels, values = _simulate(account, config)
         assert labels[0] == 30, "First label should be current age"
         assert labels[len(labels) - 1] >= 40, "Labels must extend into retirement"
 
@@ -648,7 +666,7 @@ class TestSimulate:
             annual_investment_return=0.07,
             account_type=AccountType.ROTH,
         )
-        labels, values = account.simulate(config)
+        labels, values = _simulate(account, config)
         # The max should be somewhere around retirement, not at the very end
         max_value = max(values)
         last_value = values[-1]
@@ -658,7 +676,7 @@ class TestSimulate:
 
     def test_lengths_match(self):
         user, account, config = _make_person_and_account()
-        labels, values = account.simulate(config)
+        labels, values = _simulate(account, config)
         assert len(labels) == len(values)
 
     def test_all_values_non_negative(self):
@@ -666,7 +684,7 @@ class TestSimulate:
             account_type=AccountType.ROTH,
             annual_retirement_post_tax_expense=40_000,
         )
-        _, values = account.simulate(config)
+        _, values = _simulate(account, config)
         # The very last value may be 0 (depleted), but never negative from the loop
         for i, v in enumerate(values[:-1]):
             assert v >= 0, f"Negative balance at index {i}: {v}"
@@ -699,7 +717,7 @@ class TestSimulate:
             account_type=AccountType.ROTH,
             annual_retirement_post_tax_expense=0,
         )
-        labels, values = account.simulate(config)
+        labels, values = _simulate(account, config)
         # The last value from the accumulation phase (index 9 = age 39)
         assert math.isclose(
             values[9], expected_at_retirement, rel_tol=1e-5
@@ -718,29 +736,27 @@ class TestSimulate:
             annual_investment_increase=0.0,
             account_type=AccountType.GENERIC,
         )
-        account.simulate(config)
+        _simulate(account, config)
         # Initial basis = 5000.
         # Contributions: 3 years * 12 months * 1000/month = 36000.
         # Expected basis = 41000.
-        from utils.parameters import BrokerageAccount
 
-        assert isinstance(account, BrokerageAccount)
+        assert account.account_type == AccountType.GENERIC
         assert account.cost_basis == Decimal("41000")
 
     def test_federal_capital_gains_brackets_2025_and_2026(self):
         """Verify capital gains calculations using the new 2025 and 2026 LTCG brackets."""
         config_2025 = _make_config(year=2025)
         user_2025 = Person(filing=Filing.INDIVIDUAL, state_of_residence=State.TEXAS)
-        account_2025 = Account(owner=user_2025, account_type=AccountType.GENERIC)
 
         # Under 2025 Single: 0% up to 48,350. Standard deduction is 15,750.
         # Taxable gain = 60,000 - 15,750 = 44,250.
         # Since 44,250 <= 48,350, it is all taxed at 0%. Total tax = 0.
-        from calculate.retirement import calculate_retirement_withdrawal_tax
 
-        tax = calculate_retirement_withdrawal_tax(
-            Decimal("60000"), account_2025, config_2025, is_capital_gains=True
+        ord_tax, cap_tax = calculate_aggregate_taxes(
+            Decimal("0"), Decimal("60000"), user_2025, config_2025
         )
+        tax = ord_tax + cap_tax
         assert tax == Decimal("0")
 
         # If gain is 100,000:
@@ -748,9 +764,10 @@ class TestSimulate:
         # First 48,350 taxed at 0% (0 tax).
         # Next 35,900 taxed at 15% (tax = 35900 * 0.15 = 5385.00).
         # Total tax = 5,385.00.
-        tax = calculate_retirement_withdrawal_tax(
-            Decimal("100000"), account_2025, config_2025, is_capital_gains=True
+        ord_tax, cap_tax = calculate_aggregate_taxes(
+            Decimal("0"), Decimal("100000"), user_2025, config_2025
         )
+        tax = ord_tax + cap_tax
         assert tax == Decimal("5385.00")
 
     def test_state_capital_gains_tax_calculators(self):
@@ -759,7 +776,6 @@ class TestSimulate:
 
         # Texas
         user_tx = Person(state_of_residence=State.TEXAS)
-        from calculate.state_tax import get_state_tax_calculator
 
         calculator_tx = get_state_tax_calculator(State.TEXAS)
         tx_tax = calculator_tx.calculate_capital_gains_tax(
@@ -787,7 +803,6 @@ class TestSimulate:
 
         # Using a dummy state name to trigger fallback
         unimplemented_state = "New York"
-        from calculate.state_tax import get_state_tax_calculator
 
         with caplog.at_level(logging.WARNING):
             get_state_tax_calculator(unimplemented_state)  # type: ignore
@@ -798,20 +813,94 @@ class TestSimulate:
         """Verify that FICA and SDI are excluded in retirement withdrawals."""
         config_2024 = _make_config(year=2024)
         user_ca = Person(state_of_residence=State.CALIFORNIA, filing=Filing.INDIVIDUAL)
-        account_trad = Account(owner=user_ca, account_type=AccountType.TRADITIONAL)
 
         # Calculate retirement withdrawal tax for 100,000 pre-tax
-        from calculate.retirement import calculate_retirement_withdrawal_tax
 
-        ret_tax = calculate_retirement_withdrawal_tax(
-            Decimal("100000"), account_trad, config_2024, is_capital_gains=False
+        ord_tax, cap_tax = calculate_aggregate_taxes(
+            Decimal("100000"), Decimal("0"), user_ca, config_2024
         )
+        ret_tax = ord_tax + cap_tax
 
         # Calculate standard tax on the same amount (includes FICA/SDI)
-        from calculate.aggregate import calculate_annual_income_tax
 
         user_ca.pre_tax_income = Decimal("100000")
         std_tax = calculate_annual_income_tax(user_ca, config_2024)
 
         # The difference must be at least the FICA + SDI payroll taxes on $100k
         assert std_tax - ret_tax >= Decimal("8750")
+
+    def test_coordinated_simulation_applies_single_deduction(self):
+        """Verify that when multiple traditional accounts are simulated,
+        the standard deduction is applied only once in aggregate, rather than once per account.
+        """
+        user = Person(
+            current_age=30,
+            retirement_age=30,
+            lifespan=31,
+            pre_tax_income=100_000,
+            annual_retirement_post_tax_expense=20_000,
+            state_of_residence=State.TEXAS,
+            filing=Filing.INDIVIDUAL,
+        )
+        config = _make_config(year=2024)
+
+        acc1 = Account(
+            owner=user,
+            initial_savings=500_000,
+            annual_retirement_return=0.0,
+            account_type=AccountType.TRADITIONAL,
+        )
+        acc2 = Account(
+            owner=user,
+            initial_savings=500_000,
+            annual_retirement_return=0.0,
+            account_type=AccountType.TRADITIONAL,
+        )
+        user.add_account(acc1, "Traditional_1")
+        user.add_account(acc2, "Traditional_2")
+
+        simulator = RetirementSimulator(user, config)
+        results = simulator.simulate()
+
+        _, vals1 = results["Traditional_1"]
+        _, vals2 = results["Traditional_2"]
+
+        assert vals1[0] < 490_000
+        assert (
+            vals2[0] == 500_000
+        )  # Sequentially untouched because Traditional_1 is drawn first and has enough savings
+
+    def test_coordinated_simulation_stacks_capital_gains(self):
+        """Verify that capital gains are stacked on top of ordinary income in coordinated simulation."""
+        user = Person(
+            current_age=30,
+            retirement_age=30,
+            lifespan=31,
+            pre_tax_income=100_000,
+            annual_retirement_post_tax_expense=60_000,
+            state_of_residence=State.TEXAS,
+            filing=Filing.INDIVIDUAL,
+        )
+        config = _make_config(year=2024)
+
+        acc_trad = Account(
+            owner=user,
+            initial_savings=500_000,
+            annual_retirement_return=0.0,
+            account_type=AccountType.TRADITIONAL,
+        )
+        acc_brok = Account(
+            owner=user,
+            initial_savings=500_000,
+            cost_basis=0,
+            annual_retirement_return=0.0,
+            account_type=AccountType.GENERIC,
+        )
+        user.add_account(acc_trad, "Traditional")
+        user.add_account(acc_brok, "Brokerage")
+
+        simulator = RetirementSimulator(user, config)
+        results = simulator.simulate()
+
+        _, brok_vals = results["Brokerage"]
+        assert brok_vals[0] < 490_000
