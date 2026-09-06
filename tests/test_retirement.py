@@ -802,7 +802,7 @@ class TestSimulate:
         import logging
 
         # Using a dummy state name to trigger fallback
-        unimplemented_state = "New York"
+        unimplemented_state = "Florida"
 
         with caplog.at_level(logging.WARNING):
             get_state_tax_calculator(unimplemented_state)  # type: ignore
