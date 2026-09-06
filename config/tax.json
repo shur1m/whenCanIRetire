@@ -172,7 +172,20 @@
                 },
                 "StandardTaxDeduction": 8000,
                 "JointTaxDeduction": 16050,
-                "Surcharges": []
+                "Surcharges": [
+                    {
+                        "Name": "SDI",
+                        "Rate": 0.005,
+                        "MaxTaxable": 6240,
+                        "Type": "payroll"
+                    },
+                    {
+                        "Name": "PFL",
+                        "Rate": 0.00373,
+                        "MaxTaxable": 89343.80,
+                        "Type": "payroll"
+                    }
+                ]
             }
         },
         "LocalTax": {
@@ -391,7 +404,20 @@
                 },
                 "StandardTaxDeduction": 8000,
                 "JointTaxDeduction": 16050,
-                "Surcharges": []
+                "Surcharges": [
+                    {
+                        "Name": "SDI",
+                        "Rate": 0.005,
+                        "MaxTaxable": 6240,
+                        "Type": "payroll"
+                    },
+                    {
+                        "Name": "PFL",
+                        "Rate": 0.00388,
+                        "MaxTaxable": 91373.88,
+                        "Type": "payroll"
+                    }
+                ]
             }
         },
         "LocalTax": {
@@ -610,7 +636,20 @@
                 },
                 "StandardTaxDeduction": 8000,
                 "JointTaxDeduction": 16050,
-                "Surcharges": []
+                "Surcharges": [
+                    {
+                        "Name": "SDI",
+                        "Rate": 0.005,
+                        "MaxTaxable": 6240,
+                        "Type": "payroll"
+                    },
+                    {
+                        "Name": "PFL",
+                        "Rate": 0.00432,
+                        "MaxTaxable": 95348.76,
+                        "Type": "payroll"
+                    }
+                ]
             }
         },
         "LocalTax": {

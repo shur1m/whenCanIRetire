@@ -123,9 +123,15 @@ class GlobalParameters:
         surcharge_tax = Decimal("0")
         for surcharge in state_schema.Surcharges:
             if surcharge.Type == surcharge_type:
-                threshold = surcharge.Threshold or Decimal("0")
-                if amount > threshold:
-                    surcharge_tax += surcharge.Rate * (amount - threshold)
+                if surcharge.MaxTaxable is not None:
+                    # Wage-base-capped surcharge (e.g., NY SDI, PFL)
+                    taxable = min(amount, surcharge.MaxTaxable)
+                    surcharge_tax += surcharge.Rate * max(Decimal("0"), taxable)
+                else:
+                    # Threshold-based surcharge (e.g., CA Mental Health Services)
+                    threshold = surcharge.Threshold or Decimal("0")
+                    if amount > threshold:
+                        surcharge_tax += surcharge.Rate * (amount - threshold)
         return surcharge_tax
 
     def get_local_tax_brackets(

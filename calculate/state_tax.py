@@ -106,6 +106,17 @@ class NewYorkTaxCalculator(StateTaxCalculator):
         tax_brackets = config.get_state_tax_brackets(State.NEW_YORK, user.filing)
         return calculate_progressive_tax(taxable_income, tax_brackets)
 
+    def calculate_payroll_tax(self, user: Person, config: GlobalParameters) -> Decimal:
+        """NYS SDI (Disability Benefits) and PFL (Paid Family Leave) employee contributions.
+
+        References:
+            - SDI: https://www.wcb.ny.gov/content/main/DisabilityBenefits/employer-disability-benefits.jsp
+            - PFL: https://paidfamilyleave.ny.gov/cost
+        """
+        return config.calculate_state_surcharges(
+            State.NEW_YORK, "payroll", user.pre_tax_income
+        )
+
 
 # Strategy registry
 STATE_TAX_CALCULATORS: dict[State, StateTaxCalculator] = {

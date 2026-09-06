@@ -49,7 +49,9 @@ def calculate_income_distribution_data(
         "Social Security Tax": calculate_annual_social_security_tax(user, config),
     }
 
-    state_tax = calculate_annual_state_income_tax(user, config)
+    state_tax = calculate_annual_state_income_tax(
+        user, config
+    ) + calculate_annual_state_payroll_tax(user, config)
     if state_tax > Decimal("0"):
         pie_data["State Tax"] = state_tax
 

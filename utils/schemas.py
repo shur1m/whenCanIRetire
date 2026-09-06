@@ -81,6 +81,7 @@ class SurchargeSchema(BaseModel):
     Name: str
     Rate: Decimal
     Threshold: Optional[Decimal] = None
+    MaxTaxable: Optional[Decimal] = None  # Wage base cap (e.g., NY PFL)
     Type: str  # "payroll" or "ordinary"
 
 

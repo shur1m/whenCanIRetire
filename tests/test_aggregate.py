@@ -20,6 +20,7 @@ from calculate.federal_tax import (
 )
 from calculate.state_tax import (
     calculate_annual_state_income_tax,
+    calculate_annual_state_payroll_tax,
 )
 from calculate.local_tax import (
     calculate_annual_local_income_tax,
@@ -52,13 +53,14 @@ class TestTotalIncomeTax:
         """Total tax must equal the sum of its four components."""
         federal = calculate_annual_federal_income_tax(person_tx_115k, config_2024)
         state = calculate_annual_state_income_tax(person_tx_115k, config_2024)
+        state_payroll = calculate_annual_state_payroll_tax(person_tx_115k, config_2024)
         ss = calculate_annual_social_security_tax(person_tx_115k, config_2024)
         medicare = calculate_annual_medicare_tax(person_tx_115k, config_2024)
         total = calculate_annual_income_tax(person_tx_115k, config_2024)
 
         assert math.isclose(
-            total, federal + state + ss + medicare, abs_tol=0.01
-        ), f"Total tax {total} != components sum {federal + state + ss + medicare}"
+            total, federal + state + state_payroll + ss + medicare, abs_tol=0.01
+        ), f"Total tax {total} != components sum {federal + state + state_payroll + ss + medicare}"
 
     def test_total_texas_115k_pinned(self, person_tx_115k, config_2024):
         """
@@ -134,12 +136,18 @@ def test_new_york_state_and_city_tax_in_total():
     ss = calculate_annual_social_security_tax(user, config)
     medicare = calculate_annual_medicare_tax(user, config)
     state = calculate_annual_state_income_tax(user, config)
+    state_payroll = calculate_annual_state_payroll_tax(user, config)
     local = calculate_annual_local_income_tax(user, config)
     total = calculate_annual_income_tax(user, config)
 
     assert state > Decimal("0"), "NY State tax should be positive"
+    assert state_payroll > Decimal(
+        "0"
+    ), "NY State payroll tax (SDI+PFL) should be positive"
     assert local > Decimal("0"), "NYC Local tax should be positive"
-    assert math.isclose(total, federal + ss + medicare + state + local, abs_tol=0.01)
+    assert math.isclose(
+        total, federal + ss + medicare + state + state_payroll + local, abs_tol=0.01
+    )
 
 
 def test_calculate_income_distribution_data_with_nyc():
@@ -187,3 +195,42 @@ def test_calculate_income_distribution_data_without_local_tax():
     assert "Local Tax" not in pie_data
     assert "State Tax" not in pie_data  # Texas has no state income tax
     assert math.isclose(sum(pie_data.values()), user.pre_tax_income, abs_tol=0.01)
+
+
+def test_pie_chart_state_tax_includes_payroll_tax_ny():
+    """State Tax pie slice should bundle income tax + payroll tax (SDI+PFL) for NY."""
+    user = Person(
+        pre_tax_income=115_000,
+        state_of_residence=State.NEW_YORK,
+        city_of_residence=City.NEW_YORK_CITY,
+        filing=Filing.INDIVIDUAL,
+    )
+    config = _setup(user, 2024)
+    pie_data = calculate_income_distribution_data(user, config)
+
+    state_income = calculate_annual_state_income_tax(user, config)
+    state_payroll = calculate_annual_state_payroll_tax(user, config)
+
+    assert state_payroll > Decimal("0"), "NY should have payroll tax"
+    assert math.isclose(
+        pie_data["State Tax"], state_income + state_payroll, abs_tol=0.01
+    ), f"State Tax pie slice should be income + payroll: {state_income + state_payroll}, got {pie_data['State Tax']}"
+
+
+def test_pie_chart_state_tax_includes_payroll_tax_ca():
+    """State Tax pie slice should bundle income tax + SDI payroll tax for CA."""
+    user = Person(
+        pre_tax_income=115_000,
+        state_of_residence=State.CALIFORNIA,
+        filing=Filing.INDIVIDUAL,
+    )
+    config = _setup(user, 2024)
+    pie_data = calculate_income_distribution_data(user, config)
+
+    state_income = calculate_annual_state_income_tax(user, config)
+    state_payroll = calculate_annual_state_payroll_tax(user, config)
+
+    assert state_payroll > Decimal("0"), "CA should have SDI payroll tax"
+    assert math.isclose(
+        pie_data["State Tax"], state_income + state_payroll, abs_tol=0.01
+    ), f"State Tax pie slice should be income + SDI: {state_income + state_payroll}, got {pie_data['State Tax']}"

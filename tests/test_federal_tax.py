@@ -366,3 +366,43 @@ class TestStateIncomeTax:
         assert math.isclose(
             result, 6848.88, abs_tol=1.0
         ), f"Expected CA state income tax ~6848.88, got {result:.2f}"
+
+    def test_texas_no_payroll_tax(self, person_tx_115k, config_2024):
+        assert calculate_annual_state_payroll_tax(person_tx_115k, config_2024) == 0
+
+    def test_ny_payroll_tax_sdi_and_pfl(self, person_ny_115k, config_2024):
+        """
+        NY state payroll tax is SDI + PFL (2024).
+
+        SDI: 0.5% × min($115,000, $6,240) = 0.005 × 6,240 = $31.20
+        PFL: 0.373% × min($115,000, $89,343.80) = 0.00373 × 89,343.80 = $333.25
+
+        Total = $31.20 + $333.25 = $364.45
+
+        References:
+            SDI: https://www.wcb.ny.gov/content/main/DisabilityBenefits/employer-disability-benefits.jsp
+            PFL: https://paidfamilyleave.ny.gov/cost
+        """
+        result = calculate_annual_state_payroll_tax(person_ny_115k, config_2024)
+        assert math.isclose(
+            result, 364.45, abs_tol=0.01
+        ), f"Expected NY state payroll tax 364.45, got {result:.2f}"
+
+    def test_ny_payroll_tax_below_pfl_wage_base(self):
+        """
+        For income below PFL wage base, PFL is rate × actual income.
+        $50,000 individual, 2024:
+        SDI: 0.005 × 6,240 = $31.20
+        PFL: 0.00373 × 50,000 = $186.50
+        Total = $217.70
+        """
+        user = Person(
+            pre_tax_income=50_000,
+            state_of_residence=State.NEW_YORK,
+            filing=Filing.INDIVIDUAL,
+        )
+        config = _setup(user, 2024)
+        result = calculate_annual_state_payroll_tax(user, config)
+        assert math.isclose(
+            result, 217.70, abs_tol=0.01
+        ), f"Expected NY payroll tax 217.70, got {result:.2f}"
