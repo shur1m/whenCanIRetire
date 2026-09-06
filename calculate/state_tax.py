@@ -30,6 +30,7 @@ class StateTaxCalculator:
             lifespan=user.lifespan,
             pre_tax_income=ordinary_income + capital_gains,
             state_of_residence=user.state_of_residence,
+            city_of_residence=user.city_of_residence,
             filing=user.filing,
         )
         total_tax = self.calculate_income_tax(dummy_total, config)
@@ -40,6 +41,7 @@ class StateTaxCalculator:
             lifespan=user.lifespan,
             pre_tax_income=ordinary_income,
             state_of_residence=user.state_of_residence,
+            city_of_residence=user.city_of_residence,
             filing=user.filing,
         )
         ordinary_tax = self.calculate_income_tax(dummy_ordinary, config)

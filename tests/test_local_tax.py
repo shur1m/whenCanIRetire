@@ -3,7 +3,6 @@ import logging
 import math
 from decimal import Decimal
 
-import pytest
 
 from calculate.local_tax import (
     calculate_annual_local_income_tax,

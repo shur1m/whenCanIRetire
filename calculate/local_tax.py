@@ -13,11 +13,57 @@ class LocalTaxCalculator:
     def calculate_income_tax(self, user: Person, config: GlobalParameters) -> Decimal:
         raise NotImplementedError
 
+    def calculate_capital_gains_tax(
+        self,
+        capital_gains: Decimal,
+        user: Person,
+        config: GlobalParameters,
+        ordinary_income: Decimal = Decimal("0"),
+    ) -> Decimal:
+        """Default fallback: treat capital gains as ordinary local income, stacked on top of ordinary income.
+
+        References:
+            - NYS Department of Taxation and Finance, Form IT-201-I Instructions (New York City resident tax):
+              https://www.tax.ny.gov/forms/current-forms/it/it201i.htm
+        """
+        dummy_total = Person(
+            current_age=user.current_age,
+            retirement_age=user.retirement_age,
+            lifespan=user.lifespan,
+            pre_tax_income=ordinary_income + capital_gains,
+            state_of_residence=user.state_of_residence,
+            city_of_residence=user.city_of_residence,
+            filing=user.filing,
+        )
+        total_tax = self.calculate_income_tax(dummy_total, config)
+
+        dummy_ordinary = Person(
+            current_age=user.current_age,
+            retirement_age=user.retirement_age,
+            lifespan=user.lifespan,
+            pre_tax_income=ordinary_income,
+            state_of_residence=user.state_of_residence,
+            city_of_residence=user.city_of_residence,
+            filing=user.filing,
+        )
+        ordinary_tax = self.calculate_income_tax(dummy_ordinary, config)
+
+        return max(Decimal("0"), total_tax - ordinary_tax)
+
 
 class NoLocalTaxCalculator(LocalTaxCalculator):
     """For municipalities with no local income tax (or when city_of_residence is None)."""
 
     def calculate_income_tax(self, user: Person, config: GlobalParameters) -> Decimal:
+        return Decimal("0")
+
+    def calculate_capital_gains_tax(
+        self,
+        capital_gains: Decimal,
+        user: Person,
+        config: GlobalParameters,
+        ordinary_income: Decimal = Decimal("0"),
+    ) -> Decimal:
         return Decimal("0")
 
 

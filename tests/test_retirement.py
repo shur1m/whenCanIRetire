@@ -19,7 +19,7 @@ from decimal import Decimal
 from utils.accounts.base import _adjust_for_inflation
 from utils.globals import GlobalParameters
 from utils.parameters import Person, Account
-from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State
+from utils.enums import Filing, Frequency, MonthlyCompoundType, AccountType, State, City
 from utils.schemas import TaxSchema
 from calculate.simulator import RetirementSimulator, calculate_aggregate_taxes
 from calculate.state_tax import get_state_tax_calculator
@@ -904,3 +904,81 @@ class TestSimulate:
 
         _, brok_vals = results["Brokerage"]
         assert brok_vals[0] < 490_000
+
+    def test_calculate_aggregate_taxes_includes_nyc_ordinary_and_capital_gains(self):
+        """Verify that calculate_aggregate_taxes includes NYC local ordinary and capital gains taxes."""
+        config_2024 = _make_config(year=2024)
+        user_ny_state_only = Person(
+            state_of_residence=State.NEW_YORK,
+            city_of_residence=None,
+            filing=Filing.INDIVIDUAL,
+        )
+        user_nyc = Person(
+            state_of_residence=State.NEW_YORK,
+            city_of_residence=City.NEW_YORK_CITY,
+            filing=Filing.INDIVIDUAL,
+        )
+
+        ord_ny, cap_ny = calculate_aggregate_taxes(
+            Decimal("80000"), Decimal("30000"), user_ny_state_only, config_2024
+        )
+        ord_nyc, cap_nyc = calculate_aggregate_taxes(
+            Decimal("80000"), Decimal("30000"), user_nyc, config_2024
+        )
+
+        # NYC resident must pay more ordinary tax and more capital gains tax
+        assert ord_nyc > ord_ny, "NYC ordinary tax must be higher than NY State alone"
+        assert (
+            cap_nyc > cap_ny
+        ), "NYC capital gains tax must be higher than NY State alone"
+
+    def test_nyc_simulator_draws_down_faster_due_to_local_tax(self):
+        """Verify that a retiree in NYC has higher tax gross-ups on Traditional withdrawals than one with no local tax."""
+        config_2024 = _make_config(year=2024)
+
+        user_nocity = Person(
+            current_age=65,
+            retirement_age=65,
+            lifespan=70,
+            annual_retirement_post_tax_expense=50_000,
+            state_of_residence=State.NEW_YORK,
+            city_of_residence=None,
+            filing=Filing.INDIVIDUAL,
+        )
+        acc_nocity = Account(
+            owner=user_nocity,
+            initial_savings=300_000,
+            annual_retirement_return=0.0,
+            account_type=AccountType.TRADITIONAL,
+        )
+        user_nocity.add_account(acc_nocity, "Traditional")
+
+        user_nyc = Person(
+            current_age=65,
+            retirement_age=65,
+            lifespan=70,
+            annual_retirement_post_tax_expense=50_000,
+            state_of_residence=State.NEW_YORK,
+            city_of_residence=City.NEW_YORK_CITY,
+            filing=Filing.INDIVIDUAL,
+        )
+        acc_nyc = Account(
+            owner=user_nyc,
+            initial_savings=300_000,
+            annual_retirement_return=0.0,
+            account_type=AccountType.TRADITIONAL,
+        )
+        user_nyc.add_account(acc_nyc, "Traditional")
+
+        sim_nocity = RetirementSimulator(user_nocity, config_2024)
+        res_nocity = sim_nocity.simulate()
+
+        sim_nyc = RetirementSimulator(user_nyc, config_2024)
+        res_nyc = sim_nyc.simulate()
+
+        _, vals_nocity = res_nocity["Traditional"]
+        _, vals_nyc = res_nyc["Traditional"]
+
+        # Because NYC resident pays local taxes on Traditional withdrawals,
+        # larger gross withdrawals are needed, leaving a smaller year-end balance.
+        assert vals_nyc[0] < vals_nocity[0]
