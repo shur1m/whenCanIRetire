@@ -30,6 +30,7 @@ class StateTaxCalculator:
             lifespan=user.lifespan,
             pre_tax_income=ordinary_income + capital_gains,
             state_of_residence=user.state_of_residence,
+            city_of_residence=user.city_of_residence,
             filing=user.filing,
         )
         total_tax = self.calculate_income_tax(dummy_total, config)
@@ -40,6 +41,7 @@ class StateTaxCalculator:
             lifespan=user.lifespan,
             pre_tax_income=ordinary_income,
             state_of_residence=user.state_of_residence,
+            city_of_residence=user.city_of_residence,
             filing=user.filing,
         )
         ordinary_tax = self.calculate_income_tax(dummy_ordinary, config)
@@ -88,10 +90,39 @@ class CaliforniaTaxCalculator(StateTaxCalculator):
         )
 
 
+class NewYorkTaxCalculator(StateTaxCalculator):
+    """New York state tax calculator.
+
+    References:
+        - NYS Department of Taxation and Finance, Form IT-201-I Instructions (Tax computation and schedules):
+          https://www.tax.ny.gov/forms/current-forms/it/it201i.htm
+    """
+
+    def calculate_income_tax(self, user: Person, config: GlobalParameters) -> Decimal:
+        tax_deduction = config.get_state_tax_deduction(State.NEW_YORK, user.filing)
+
+        # Bracket-based state income tax
+        taxable_income = max(Decimal("0"), user.get_reduced_income() - tax_deduction)
+        tax_brackets = config.get_state_tax_brackets(State.NEW_YORK, user.filing)
+        return calculate_progressive_tax(taxable_income, tax_brackets)
+
+    def calculate_payroll_tax(self, user: Person, config: GlobalParameters) -> Decimal:
+        """NYS SDI (Disability Benefits) and PFL (Paid Family Leave) employee contributions.
+
+        References:
+            - SDI: https://www.wcb.ny.gov/content/main/DisabilityBenefits/employer-disability-benefits.jsp
+            - PFL: https://paidfamilyleave.ny.gov/cost
+        """
+        return config.calculate_state_surcharges(
+            State.NEW_YORK, "payroll", user.pre_tax_income
+        )
+
+
 # Strategy registry
 STATE_TAX_CALCULATORS: dict[State, StateTaxCalculator] = {
     State.TEXAS: NoStateTaxCalculator(),
     State.CALIFORNIA: CaliforniaTaxCalculator(),
+    State.NEW_YORK: NewYorkTaxCalculator(),
 }
 
 

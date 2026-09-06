@@ -3,7 +3,7 @@ from decimal import Decimal
 import json
 from utils.globals import GlobalParameters
 from utils.parameters import Person
-from utils.enums import Filing, State
+from utils.enums import Filing, State, City
 from utils.schemas import TaxSchema
 
 
@@ -56,4 +56,18 @@ def person_tx_joint_200k() -> Person:
         pre_tax_income=200_000,
         state_of_residence=State.TEXAS,
         filing=Filing.JOINT,
+    )
+
+
+@pytest.fixture
+def person_ny_115k() -> Person:
+    """Single filer, New York (NYC), $115k pre-tax income."""
+    return Person(
+        current_age=30,
+        retirement_age=65,
+        lifespan=90,
+        pre_tax_income=115_000,
+        state_of_residence=State.NEW_YORK,
+        city_of_residence=City.NEW_YORK_CITY,
+        filing=Filing.INDIVIDUAL,
     )

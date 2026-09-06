@@ -1,6 +1,6 @@
 import logging
 from decimal import Decimal
-from utils.enums import Filing, State
+from utils.enums import Filing, State, City
 from utils.schemas import YearlyTaxSchema
 
 logger = logging.getLogger(__name__)
@@ -123,10 +123,44 @@ class GlobalParameters:
         surcharge_tax = Decimal("0")
         for surcharge in state_schema.Surcharges:
             if surcharge.Type == surcharge_type:
-                threshold = surcharge.Threshold or Decimal("0")
-                if amount > threshold:
-                    surcharge_tax += surcharge.Rate * (amount - threshold)
+                if surcharge.MaxTaxable is not None:
+                    # Wage-base-capped surcharge (e.g., NY SDI, PFL)
+                    taxable = min(amount, surcharge.MaxTaxable)
+                    surcharge_tax += surcharge.Rate * max(Decimal("0"), taxable)
+                else:
+                    # Threshold-based surcharge (e.g., CA Mental Health Services)
+                    threshold = surcharge.Threshold or Decimal("0")
+                    if amount > threshold:
+                        surcharge_tax += surcharge.Rate * (amount - threshold)
         return surcharge_tax
+
+    def get_local_tax_brackets(
+        self, city: City, filing: Filing
+    ) -> list[tuple[Decimal, Decimal]]:
+        if city not in self.yearly_tax.LocalTax:
+            raise ValueError(
+                f"Local tax brackets configuration is missing for city '{city.value}' in year {self.year}"
+            )
+        city_schema = self.yearly_tax.LocalTax[city]
+        bracket_schema = (
+            city_schema.Individual if filing == Filing.INDIVIDUAL else city_schema.Joint
+        )
+        return [
+            (p, lb)
+            for p, lb in zip(bracket_schema.Percents, bracket_schema.LowerBounds)
+        ]
+
+    def get_local_tax_deduction(self, city: City, filing: Filing) -> Decimal:
+        if city not in self.yearly_tax.LocalTax:
+            raise ValueError(
+                f"Local tax deduction configuration is missing for city '{city.value}' in year {self.year}"
+            )
+        city_schema = self.yearly_tax.LocalTax[city]
+        return (
+            city_schema.StandardTaxDeduction
+            if filing == Filing.INDIVIDUAL
+            else city_schema.JointTaxDeduction
+        )
 
     @property
     def social_security_max_taxable(self) -> Decimal:

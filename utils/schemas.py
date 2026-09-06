@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, RootModel, model_validator
 from typing import Dict, List, Optional
 from decimal import Decimal
-from utils.enums import Filing, Frequency, AccountType, State, MonthlyCompoundType
+from utils.enums import Filing, Frequency, AccountType, State, City, MonthlyCompoundType
 
 
 class ExpenseSchema(BaseModel):
@@ -31,6 +31,7 @@ class PersonSchema(BaseModel):
     additional_income_tax_deductions: Decimal = Decimal("0")
     annual_retirement_post_tax_expense: Decimal = Decimal("72000")
     state_of_residence: Optional[State] = None
+    city_of_residence: Optional[City] = None
     filing: Filing = Filing.INDIVIDUAL
     Accounts: Dict[str, AccountSchema] = Field(default_factory=dict)
     Expenses: List[ExpenseSchema] = Field(default_factory=list)
@@ -80,6 +81,7 @@ class SurchargeSchema(BaseModel):
     Name: str
     Rate: Decimal
     Threshold: Optional[Decimal] = None
+    MaxTaxable: Optional[Decimal] = None  # Wage base cap (e.g., NY PFL)
     Type: str  # "payroll" or "ordinary"
 
 
@@ -89,6 +91,13 @@ class StateTaxSchema(BaseModel):
     StandardTaxDeduction: Decimal
     JointTaxDeduction: Decimal
     Surcharges: List[SurchargeSchema] = Field(default_factory=list)
+
+
+class LocalTaxSchema(BaseModel):
+    Individual: TaxBracketSchema
+    Joint: TaxBracketSchema
+    StandardTaxDeduction: Decimal
+    JointTaxDeduction: Decimal
 
 
 class FicaTaxSchema(BaseModel):
@@ -104,6 +113,7 @@ class YearlyTaxSchema(BaseModel):
     InflationRate: Decimal = Decimal("0.03")
     FederalTax: FederalTaxSchema
     StateTax: Dict[State, StateTaxSchema] = Field(default_factory=dict)
+    LocalTax: Dict[City, LocalTaxSchema] = Field(default_factory=dict)
     FicaTax: FicaTaxSchema
 
 

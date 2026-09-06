@@ -5,6 +5,7 @@ from utils.globals import GlobalParameters, calculate_progressive_tax
 from utils.enums import AccountType
 from utils.accounts.base import Account, _adjust_for_inflation
 from calculate.state_tax import get_state_tax_calculator
+from calculate.local_tax import get_local_tax_calculator
 
 
 def calculate_aggregate_taxes(
@@ -13,7 +14,7 @@ def calculate_aggregate_taxes(
     user: Person,
     config: GlobalParameters,
 ) -> Tuple[Decimal, Decimal]:
-    """Calculates aggregate federal and state taxes for ordinary and capital gains income in real dollars.
+    """Calculates aggregate federal, state, and local taxes for ordinary and capital gains income in real dollars.
 
     This function applies standard deductions exactly once for the individual or joint household,
     preventing double-counting when multiple accounts are drawn from. Long-term capital gains are stacked
@@ -22,7 +23,7 @@ def calculate_aggregate_taxes(
     Args:
         Y_ord_real: Aggregated annual ordinary pre-tax income in today's (real) dollars.
         Y_cap_real: Aggregated annual capital gains income in today's (real) dollars.
-        user: The Person owner containing filing status and state.
+        user: The Person owner containing filing status, state, and city.
         config: The GlobalParameters configuration context for the tax brackets.
 
     Returns:
@@ -34,32 +35,25 @@ def calculate_aggregate_taxes(
     fed_ord_brackets = config.get_fed_tax_brackets(user.filing)
     fed_ord_tax = calculate_progressive_tax(taxable_ord_fed, fed_ord_brackets)
 
+    # Construct dummy Person representing the ordinary retirement withdrawal pool
+    dummy_ord = Person(
+        pre_tax_income=Y_ord_real,
+        state_of_residence=user.state_of_residence,
+        city_of_residence=user.city_of_residence,
+        filing=user.filing,
+    )
+
     # 2. State Ordinary Tax
-    state_deduction = (
-        config.get_state_tax_deduction(user.state_of_residence, user.filing)
-        if user.state_of_residence
-        else Decimal("0")
-    )
-    taxable_ord_state = max(Decimal("0"), Y_ord_real - state_deduction)
-    state_ord_brackets = (
-        config.get_state_tax_brackets(user.state_of_residence, user.filing)
-        if user.state_of_residence
-        else []
-    )
-    state_ord_tax = (
-        calculate_progressive_tax(taxable_ord_state, state_ord_brackets)
-        if user.state_of_residence
-        else Decimal("0")
-    )
-    if user.state_of_residence:
-        # California surcharges
-        state_ord_tax += config.calculate_state_surcharges(
-            user.state_of_residence, "ordinary", taxable_ord_state
-        )
+    state_calculator = get_state_tax_calculator(user.state_of_residence)
+    state_ord_tax = state_calculator.calculate_income_tax(dummy_ord, config)
 
-    ord_tax_real = fed_ord_tax + state_ord_tax
+    # 3. Local Ordinary Tax
+    local_calculator = get_local_tax_calculator(user.city_of_residence)
+    local_ord_tax = local_calculator.calculate_income_tax(dummy_ord, config)
 
-    # 3. Federal Capital Gains Tax
+    ord_tax_real = fed_ord_tax + state_ord_tax + local_ord_tax
+
+    # 4. Federal Capital Gains Tax
     unused_deduction = max(Decimal("0"), fed_deduction - Y_ord_real)
     taxable_cap_fed = max(Decimal("0"), Y_cap_real - unused_deduction)
     fed_cap_brackets = config.get_fed_capital_gains_brackets(user.filing)
@@ -71,13 +65,17 @@ def calculate_aggregate_taxes(
     base_fed_cap_tax = calculate_progressive_tax(taxable_ord_fed, fed_cap_brackets)
     fed_cap_tax = total_fed_cap_tax - base_fed_cap_tax
 
-    # 4. State Capital Gains Tax
-    state_calculator = get_state_tax_calculator(user.state_of_residence)
+    # 5. State Capital Gains Tax
     state_cap_tax = state_calculator.calculate_capital_gains_tax(
         Y_cap_real, user, config, ordinary_income=Y_ord_real
     )
 
-    cap_tax_real = fed_cap_tax + state_cap_tax
+    # 6. Local Capital Gains Tax
+    local_cap_tax = local_calculator.calculate_capital_gains_tax(
+        Y_cap_real, user, config, ordinary_income=Y_ord_real
+    )
+
+    cap_tax_real = fed_cap_tax + state_cap_tax + local_cap_tax
 
     return ord_tax_real, cap_tax_real
 
