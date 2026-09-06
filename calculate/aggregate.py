@@ -10,6 +10,9 @@ from calculate.state_tax import (
     calculate_annual_state_income_tax,
     calculate_annual_state_payroll_tax,
 )
+from calculate.local_tax import (
+    calculate_annual_local_income_tax,
+)
 from utils.enums import Frequency
 from utils.parameters import Person
 from utils.globals import GlobalParameters
@@ -22,6 +25,7 @@ def calculate_annual_income_tax(user: Person, config: GlobalParameters) -> Decim
         + calculate_annual_medicare_tax(user, config)
         + calculate_annual_state_income_tax(user, config)
         + calculate_annual_state_payroll_tax(user, config)
+        + calculate_annual_local_income_tax(user, config)
     )
 
 
@@ -48,6 +52,10 @@ def calculate_income_distribution_data(
     state_tax = calculate_annual_state_income_tax(user, config)
     if state_tax > Decimal("0"):
         pie_data["State Tax"] = state_tax
+
+    local_tax = calculate_annual_local_income_tax(user, config)
+    if local_tax > Decimal("0"):
+        pie_data["Local Tax"] = local_tax
 
     # Add account contributions
     for account_name, account in user.accounts.items():

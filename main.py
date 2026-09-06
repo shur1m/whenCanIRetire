@@ -65,6 +65,7 @@ def generate_income_distribution_graph(
         + pie_data.get("Medicare Tax", Decimal("0"))
         + pie_data.get("Social Security Tax", Decimal("0"))
         + pie_data.get("State Tax", Decimal("0"))
+        + pie_data.get("Local Tax", Decimal("0"))
     )
 
     retirement_deductions_excess = calculate_retirement_deductions_excess(

@@ -88,10 +88,28 @@ class CaliforniaTaxCalculator(StateTaxCalculator):
         )
 
 
+class NewYorkTaxCalculator(StateTaxCalculator):
+    """New York state tax calculator.
+
+    References:
+        - NYS Department of Taxation and Finance, Form IT-201-I Instructions (Tax computation and schedules):
+          https://www.tax.ny.gov/forms/current-forms/it/it201i.htm
+    """
+
+    def calculate_income_tax(self, user: Person, config: GlobalParameters) -> Decimal:
+        tax_deduction = config.get_state_tax_deduction(State.NEW_YORK, user.filing)
+
+        # Bracket-based state income tax
+        taxable_income = max(Decimal("0"), user.get_reduced_income() - tax_deduction)
+        tax_brackets = config.get_state_tax_brackets(State.NEW_YORK, user.filing)
+        return calculate_progressive_tax(taxable_income, tax_brackets)
+
+
 # Strategy registry
 STATE_TAX_CALCULATORS: dict[State, StateTaxCalculator] = {
     State.TEXAS: NoStateTaxCalculator(),
     State.CALIFORNIA: CaliforniaTaxCalculator(),
+    State.NEW_YORK: NewYorkTaxCalculator(),
 }
 
 
