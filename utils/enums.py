@@ -26,3 +26,8 @@ class Filing(str, Enum):
 class State(str, Enum):
     TEXAS = "Texas"
     CALIFORNIA = "California"
+    NEW_YORK = "New York"
+
+
+class City(str, Enum):
+    NEW_YORK_CITY = "New York City"

@@ -1,6 +1,6 @@
 from typing import Optional, Union
 from decimal import Decimal
-from utils.enums import Filing, Frequency, AccountType, State
+from utils.enums import Filing, Frequency, AccountType, State, City
 from utils.accounts import (
     Account,
     to_decimal,
@@ -28,6 +28,7 @@ class Person:
         ] = None,  # annual values
         annual_retirement_post_tax_expense: Union[Decimal, float, int] = 72_000,
         state_of_residence: Optional[State] = None,
+        city_of_residence: Optional[City] = None,
         filing: Filing = Filing.INDIVIDUAL,
     ) -> None:
 
@@ -47,6 +48,7 @@ class Person:
             annual_retirement_post_tax_expense
         )
         self.state_of_residence: Optional[State] = state_of_residence
+        self.city_of_residence: Optional[City] = city_of_residence
         self.filing: Filing = filing
         self.accounts: dict[str, Account] = dict()
 

@@ -1,6 +1,6 @@
 import logging
 from decimal import Decimal
-from utils.enums import Filing, State
+from utils.enums import Filing, State, City
 from utils.schemas import YearlyTaxSchema
 
 logger = logging.getLogger(__name__)
@@ -127,6 +127,34 @@ class GlobalParameters:
                 if amount > threshold:
                     surcharge_tax += surcharge.Rate * (amount - threshold)
         return surcharge_tax
+
+    def get_local_tax_brackets(
+        self, city: City, filing: Filing
+    ) -> list[tuple[Decimal, Decimal]]:
+        if city not in self.yearly_tax.LocalTax:
+            raise ValueError(
+                f"Local tax brackets configuration is missing for city '{city.value}' in year {self.year}"
+            )
+        city_schema = self.yearly_tax.LocalTax[city]
+        bracket_schema = (
+            city_schema.Individual if filing == Filing.INDIVIDUAL else city_schema.Joint
+        )
+        return [
+            (p, lb)
+            for p, lb in zip(bracket_schema.Percents, bracket_schema.LowerBounds)
+        ]
+
+    def get_local_tax_deduction(self, city: City, filing: Filing) -> Decimal:
+        if city not in self.yearly_tax.LocalTax:
+            raise ValueError(
+                f"Local tax deduction configuration is missing for city '{city.value}' in year {self.year}"
+            )
+        city_schema = self.yearly_tax.LocalTax[city]
+        return (
+            city_schema.StandardTaxDeduction
+            if filing == Filing.INDIVIDUAL
+            else city_schema.JointTaxDeduction
+        )
 
     @property
     def social_security_max_taxable(self) -> Decimal:
