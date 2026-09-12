@@ -74,10 +74,7 @@ def render_expenses(state: AppState, on_refresh: Callable[[], None]):
                             "text-[11px] text-gray-700 font-medium"
                         )
                         ui.select(
-                            {
-                                e.value: e.value.capitalize()
-                                for e in Frequency
-                            },
+                            {e.value: e.value.capitalize() for e in Frequency},
                             value=exp.frequency,
                             on_change=lambda e, idx=i: setattr(
                                 state.person_schema.Expenses[idx],

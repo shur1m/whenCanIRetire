@@ -44,10 +44,7 @@ def render_accounts(state: AppState, on_refresh: Callable[[], None]):
                             "text-[11px] text-gray-700 font-medium"
                         )
                         ui.select(
-                            {
-                                e.value: e.value.capitalize()
-                                for e in AccountType
-                            },
+                            {e.value: e.value.capitalize() for e in AccountType},
                             value=acc.account_type,
                             on_change=lambda e, name=acc_name: setattr(
                                 state.person_schema.Accounts[name],
@@ -90,10 +87,7 @@ def render_accounts(state: AppState, on_refresh: Callable[[], None]):
                             "text-[11px] text-gray-700 font-medium"
                         )
                         ui.select(
-                            {
-                                e.value: e.value.capitalize()
-                                for e in Frequency
-                            },
+                            {e.value: e.value.capitalize() for e in Frequency},
                             value=acc.regular_investment_frequency,
                             on_change=lambda e, name=acc_name: setattr(
                                 state.person_schema.Accounts[name],

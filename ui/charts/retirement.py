@@ -43,7 +43,7 @@ def get_retirement_line_chart_options(user: Person, config: GlobalParameters) ->
         }
     )
 
-    yearly_retirement_expense = float(user.annual_retirement_post_tax_expense)
+    yearly_retirement_expense = float(simulator.annual_retirement_expense)
     expense_formatted = f"{yearly_retirement_expense:,.2f}"
 
     return {

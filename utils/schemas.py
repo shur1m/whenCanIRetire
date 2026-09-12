@@ -29,7 +29,6 @@ class PersonSchema(BaseModel):
     lifespan: int = 120
     pre_tax_income: Decimal = Decimal("115000")
     additional_income_tax_deductions: Decimal = Decimal("0")
-    annual_retirement_post_tax_expense: Decimal = Decimal("72000")
     state_of_residence: Optional[State] = None
     city_of_residence: Optional[City] = None
     filing: Filing = Filing.INDIVIDUAL

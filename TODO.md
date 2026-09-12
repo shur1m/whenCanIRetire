@@ -8,7 +8,7 @@
 - Calculate total money spent and optimal withdrawal(post tax income during accumulation + post tax withdrawal during retirement)
   - optimal account drawndown/withdrawal order https://www.fidelity.com/viewpoints/retirement/tax-savvy-withdrawals
   - 401k pretax rmd requires retirees to withdraw their account before a certain age
-- Automatically calculate retirement expense to end at life expectancy
+- [x] Automatically calculate retirement expense to end at life expectancy
 - Allow user to set timespan during the accumulation phase where they are contributing (useful for HSA where only young people can contribute because they are healthy)
 - Allow user to set timespan during retirement phase where they are withdrawing
 - Nice to have: UI and dynamic changes, options for banker's rounding vs normal rounding to whole numbers

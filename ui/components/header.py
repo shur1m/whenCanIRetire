@@ -8,7 +8,9 @@ def render_header(
     on_year_change: Callable[[str], None],
     on_save: Callable[[], None],
 ):
-    with ui.header().classes("desktop-toolbar flex items-center justify-between no-wrap"):
+    with ui.header().classes(
+        "desktop-toolbar flex items-center justify-between no-wrap"
+    ):
         with ui.row().classes("items-center gap-2 no-wrap"):
             ui.label("When Can I Retire?").classes("font-bold text-xs tracking-tight")
             ui.label("|").classes("text-gray-400 mx-1")

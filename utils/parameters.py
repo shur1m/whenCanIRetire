@@ -26,7 +26,6 @@ class Person:
         accumulation_phase_expenses: Optional[
             dict[str, Decimal]
         ] = None,  # annual values
-        annual_retirement_post_tax_expense: Union[Decimal, float, int] = 72_000,
         state_of_residence: Optional[State] = None,
         city_of_residence: Optional[City] = None,
         filing: Filing = Filing.INDIVIDUAL,
@@ -43,9 +42,6 @@ class Person:
             dict()
             if accumulation_phase_expenses is None
             else {k: to_decimal(v) for k, v in accumulation_phase_expenses.items()}
-        )
-        self.annual_retirement_post_tax_expense: Decimal = to_decimal(
-            annual_retirement_post_tax_expense
         )
         self.state_of_residence: Optional[State] = state_of_residence
         self.city_of_residence: Optional[City] = city_of_residence

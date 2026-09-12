@@ -15,6 +15,7 @@ so that any refactor that changes the math will be detected.
 import math
 import json
 from decimal import Decimal
+from typing import Optional
 
 from utils.accounts.base import _adjust_for_inflation
 from utils.globals import GlobalParameters
@@ -53,7 +54,6 @@ def _make_person_and_account(
     annual_investment_increase=0.0,
     annual_investment_return=0.07,
     annual_retirement_return=0.05,
-    annual_retirement_post_tax_expense=60_000,
     compound_frequency=Frequency.MONTHLY,
     compound_type=MonthlyCompoundType.ROOT,
     account_type=AccountType.GENERIC,
@@ -65,7 +65,6 @@ def _make_person_and_account(
         retirement_age=retirement_age,
         lifespan=lifespan,
         pre_tax_income=pre_tax_income,
-        annual_retirement_post_tax_expense=annual_retirement_post_tax_expense,
         state_of_residence=state_of_residence,
     )
     config = _make_config(2024)
@@ -86,11 +85,13 @@ def _make_person_and_account(
 
 
 def _simulate(
-    account: Account, config: GlobalParameters
+    account: Account,
+    config: GlobalParameters,
+    fixed_annual_expense: Optional[Decimal] = None,
 ) -> tuple[list[int], list[Decimal]]:
     account.owner.accounts = {"temp_account": account}
     simulator = RetirementSimulator(account.owner, config)
-    res = simulator.simulate()
+    res = simulator.simulate(fixed_annual_expense=fixed_annual_expense)
     return res["temp_account"]
 
 
@@ -361,7 +362,6 @@ class TestSimulateRetirement:
             retirement_age=retirement_age,
             lifespan=lifespan,
             pre_tax_income=115_000,
-            annual_retirement_post_tax_expense=annual_expense,
             state_of_residence=State.TEXAS,
         )
         config = _make_config(2024)
@@ -378,7 +378,7 @@ class TestSimulateRetirement:
         user.add_account(account, "temp_account")
 
         simulator = RetirementSimulator(user, config)
-        res = simulator.simulate()
+        res = simulator.simulate(fixed_annual_expense=annual_expense)
         labels, values = res["temp_account"]
         ret_indices = [i for i, l in enumerate(labels) if l > retirement_age]
         ret_labels = [labels[i] for i in ret_indices]
@@ -522,7 +522,6 @@ class TestSimulateRetirement:
             retirement_age=40,
             lifespan=41,
             pre_tax_income=115_000,
-            annual_retirement_post_tax_expense=12_000,
             state_of_residence=State.TEXAS,
         )
         config = _make_config(2024)
@@ -541,7 +540,7 @@ class TestSimulateRetirement:
         user.add_account(account, "Brokerage")
 
         simulator = RetirementSimulator(user, config)
-        simulator.simulate()
+        simulator.simulate(fixed_annual_expense=Decimal("12000"))
 
         assert math.isclose(
             float(account.cost_basis), 132_000.0, abs_tol=1.0
@@ -554,7 +553,6 @@ class TestSimulateRetirement:
             retirement_age=65,
             lifespan=90,
             pre_tax_income=115_000,
-            annual_retirement_post_tax_expense=60_000,  # $5,000 / month
             state_of_residence=State.TEXAS,
         )
         config = _make_config(2024)
@@ -568,6 +566,7 @@ class TestSimulateRetirement:
         user.accounts = {"Traditional": account_trad}
 
         simulator = RetirementSimulator(user, config)
+        simulator.annual_retirement_expense = Decimal("60000")
 
         # 1. Test at inflation_factor = 1.0 (real dollars, month 0)
         account_trad.current_savings = Decimal("1000000")
@@ -645,7 +644,6 @@ class TestSimulate:
             lifespan=50,
             initial_savings=0,
             regular_investment_dollar=1_000,
-            annual_retirement_post_tax_expense=60_000,
             annual_retirement_return=0.05,
             account_type=AccountType.ROTH,
         )
@@ -661,7 +659,6 @@ class TestSimulate:
             lifespan=55,
             initial_savings=0,
             regular_investment_dollar=1_000,
-            annual_retirement_post_tax_expense=40_000,
             annual_retirement_return=0.0,
             annual_investment_return=0.07,
             account_type=AccountType.ROTH,
@@ -682,7 +679,6 @@ class TestSimulate:
     def test_all_values_non_negative(self):
         user, account, config = _make_person_and_account(
             account_type=AccountType.ROTH,
-            annual_retirement_post_tax_expense=40_000,
         )
         _, values = _simulate(account, config)
         # The very last value may be 0 (depleted), but never negative from the loop
@@ -715,7 +711,6 @@ class TestSimulate:
             compound_frequency=Frequency.MONTHLY,
             compound_type=MonthlyCompoundType.ROOT,
             account_type=AccountType.ROTH,
-            annual_retirement_post_tax_expense=0,
         )
         labels, values = _simulate(account, config)
         # The last value from the accumulation phase (index 9 = age 39)
@@ -838,7 +833,6 @@ class TestSimulate:
             retirement_age=30,
             lifespan=31,
             pre_tax_income=100_000,
-            annual_retirement_post_tax_expense=20_000,
             state_of_residence=State.TEXAS,
             filing=Filing.INDIVIDUAL,
         )
@@ -860,7 +854,7 @@ class TestSimulate:
         user.add_account(acc2, "Traditional_2")
 
         simulator = RetirementSimulator(user, config)
-        results = simulator.simulate()
+        results = simulator.simulate(fixed_annual_expense=Decimal("20000"))
 
         _, vals1 = results["Traditional_1"]
         _, vals2 = results["Traditional_2"]
@@ -877,7 +871,6 @@ class TestSimulate:
             retirement_age=30,
             lifespan=31,
             pre_tax_income=100_000,
-            annual_retirement_post_tax_expense=60_000,
             state_of_residence=State.TEXAS,
             filing=Filing.INDIVIDUAL,
         )
@@ -900,7 +893,7 @@ class TestSimulate:
         user.add_account(acc_brok, "Brokerage")
 
         simulator = RetirementSimulator(user, config)
-        results = simulator.simulate()
+        results = simulator.simulate(fixed_annual_expense=Decimal("60000"))
 
         _, brok_vals = results["Brokerage"]
         assert brok_vals[0] < 490_000
@@ -940,7 +933,6 @@ class TestSimulate:
             current_age=65,
             retirement_age=65,
             lifespan=70,
-            annual_retirement_post_tax_expense=50_000,
             state_of_residence=State.NEW_YORK,
             city_of_residence=None,
             filing=Filing.INDIVIDUAL,
@@ -957,7 +949,6 @@ class TestSimulate:
             current_age=65,
             retirement_age=65,
             lifespan=70,
-            annual_retirement_post_tax_expense=50_000,
             state_of_residence=State.NEW_YORK,
             city_of_residence=City.NEW_YORK_CITY,
             filing=Filing.INDIVIDUAL,
@@ -971,10 +962,10 @@ class TestSimulate:
         user_nyc.add_account(acc_nyc, "Traditional")
 
         sim_nocity = RetirementSimulator(user_nocity, config_2024)
-        res_nocity = sim_nocity.simulate()
+        res_nocity = sim_nocity.simulate(fixed_annual_expense=Decimal("50000"))
 
         sim_nyc = RetirementSimulator(user_nyc, config_2024)
-        res_nyc = sim_nyc.simulate()
+        res_nyc = sim_nyc.simulate(fixed_annual_expense=Decimal("50000"))
 
         _, vals_nocity = res_nocity["Traditional"]
         _, vals_nyc = res_nyc["Traditional"]
@@ -982,3 +973,130 @@ class TestSimulate:
         # Because NYC resident pays local taxes on Traditional withdrawals,
         # larger gross withdrawals are needed, leaving a smaller year-end balance.
         assert vals_nyc[0] < vals_nocity[0]
+
+
+# ===========================================================================
+# TestCalculateLifespanRetirementExpense
+# ===========================================================================
+
+
+class TestCalculateLifespanRetirementExpense:
+    def test_lifespan_less_than_or_equal_retirement_age_returns_zero(self):
+        config = _make_config(year=2024)
+        user = Person(
+            current_age=30,
+            retirement_age=65,
+            lifespan=65,
+            pre_tax_income=100_000,
+            state_of_residence=State.TEXAS,
+        )
+        acc = Account(
+            owner=user,
+            initial_savings=100_000,
+            account_type=AccountType.ROTH,
+        )
+        user.add_account(acc, "Roth")
+
+        sim = RetirementSimulator(user, config)
+        expense = sim.calculate_lifespan_retirement_expense()
+        assert expense == Decimal("0")
+
+    def test_zero_accumulated_savings_returns_zero(self):
+        config = _make_config(year=2024)
+        user = Person(
+            current_age=30,
+            retirement_age=40,
+            lifespan=60,
+            pre_tax_income=100_000,
+            state_of_residence=State.TEXAS,
+        )
+        acc = Account(
+            owner=user,
+            initial_savings=0,
+            regular_investment_dollar=0,
+            account_type=AccountType.ROTH,
+        )
+        user.add_account(acc, "Roth")
+
+        sim = RetirementSimulator(user, config)
+        expense = sim.calculate_lifespan_retirement_expense()
+        assert expense == Decimal("0")
+
+    def test_roth_single_account_depletes_at_lifespan(self):
+        config = _make_config(year=2024)
+        config.inflation_rate = Decimal("0.0")  # flat for transparent arithmetic check
+        user = Person(
+            current_age=40,
+            retirement_age=40,
+            lifespan=50,  # 10 years of retirement = 120 months
+            pre_tax_income=100_000,
+            state_of_residence=State.TEXAS,
+        )
+        acc = Account(
+            owner=user,
+            initial_savings=120_000,
+            regular_investment_dollar=0,
+            annual_retirement_return=0.0,
+            account_type=AccountType.ROTH,
+        )
+        user.add_account(acc, "Roth")
+
+        sim = RetirementSimulator(user, config)
+        expense = sim.calculate_lifespan_retirement_expense()
+        # With $120,000 savings, 0% return, 0% inflation over 10 years (120 months),
+        # exact yearly expense is $12,000/year.
+        assert math.isclose(float(expense), 12_000.0, abs_tol=1.0)
+
+        # Run simulate without arguments and check ending balance
+        results = sim.simulate()
+        labels, values = results["Roth"]
+        assert labels[-1] == 50
+        assert values[-1] <= Decimal("1.00")
+        assert sim.annual_retirement_expense == expense
+
+    def test_multi_account_with_inflation_and_returns(self):
+        config = _make_config(year=2024)
+        user = Person(
+            current_age=25,
+            retirement_age=50,
+            lifespan=80,
+            pre_tax_income=120_000,
+            state_of_residence=State.TEXAS,
+        )
+        acc_hsa = Account(
+            owner=user,
+            initial_savings=5_000,
+            regular_investment_dollar=300,
+            annual_investment_return=0.07,
+            annual_retirement_return=0.04,
+            account_type=AccountType.HSA,
+        )
+        acc_trad = Account(
+            owner=user,
+            initial_savings=20_000,
+            regular_investment_dollar=1_500,
+            annual_investment_return=0.07,
+            annual_retirement_return=0.04,
+            account_type=AccountType.TRADITIONAL,
+        )
+        acc_roth = Account(
+            owner=user,
+            initial_savings=10_000,
+            regular_investment_dollar=500,
+            annual_investment_return=0.07,
+            annual_retirement_return=0.04,
+            account_type=AccountType.ROTH,
+        )
+        user.add_account(acc_hsa, "HSA")
+        user.add_account(acc_trad, "401k")
+        user.add_account(acc_roth, "Roth")
+
+        sim = RetirementSimulator(user, config)
+        results = sim.simulate()
+
+        assert sim.annual_retirement_expense > Decimal("10000")
+        # Ensure portfolio reaches age 80 without early depletion
+        total_ending = sum(values[-1] for labels, values in results.values())
+        assert total_ending >= Decimal("0")
+        # The remaining balance at lifespan should be very close to 0 (within a small tolerance)
+        assert total_ending < Decimal("100.00")
