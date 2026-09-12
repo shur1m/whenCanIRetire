@@ -84,6 +84,7 @@ input.q-field__native {
   box-sizing: border-box !important;
 }
 
+.desktop-drawer .item-rename-input.q-field,
 .desktop-drawer .account-rename-input.q-field {
   width: auto !important;
   max-width: none !important;

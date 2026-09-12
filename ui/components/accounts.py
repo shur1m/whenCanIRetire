@@ -41,12 +41,14 @@ def render_accounts(state: AppState, on_refresh: Callable[[], None]):
                         )
                         with ui.row().classes("items-center gap-1 shrink-0"):
                             ui.button(
-                                "✎ Edit",
+                                "✎",
                                 on_click=lambda _, c=container, n=current_name: setup_edit_mode(
                                     c, n
                                 ),
                             ).props("dense flat").classes(
-                                "text-blue-700 text-xs p-0 h-5"
+                                "text-blue-700 text-xs p-0 h-5 w-5"
+                            ).tooltip(
+                                "Edit"
                             )
 
                             def remove_account(name: str):
@@ -54,12 +56,14 @@ def render_accounts(state: AppState, on_refresh: Callable[[], None]):
                                 on_refresh()
 
                             ui.button(
-                                "✕ Remove",
+                                "✕",
                                 on_click=lambda _, name=current_name: remove_account(
                                     name
                                 ),
                             ).props("dense flat").classes(
-                                "text-red-700 text-xs p-0 h-5"
+                                "text-red-700 text-xs p-0 h-5 w-5"
+                            ).tooltip(
+                                "Remove"
                             )
 
                 def setup_edit_mode(container: ui.row, current_name: str):
@@ -69,7 +73,7 @@ def render_accounts(state: AppState, on_refresh: Callable[[], None]):
                             name_input = (
                                 ui.input(value=current_name)
                                 .props("dense outlined autofocus")
-                                .classes("account-rename-input text-xs")
+                                .classes("item-rename-input text-xs")
                             )
 
                             def save():
@@ -105,18 +109,18 @@ def render_accounts(state: AppState, on_refresh: Callable[[], None]):
                                 lambda: setup_header(container, current_name),
                             )
 
-                            ui.button("Save", on_click=save).props(
-                                "dense flat"
-                            ).classes(
-                                "text-blue-700 font-semibold text-xs p-0 h-5 shrink-0"
-                            )
+                            ui.button("✓", on_click=save).props("dense flat").classes(
+                                "text-green-700 font-bold text-xs p-0 h-5 w-5 shrink-0"
+                            ).tooltip("Save")
                             ui.button(
-                                "Cancel",
+                                "✕",
                                 on_click=lambda _, c=container, n=current_name: setup_header(
                                     c, n
                                 ),
                             ).props("dense flat").classes(
-                                "text-gray-600 text-xs p-0 h-5 shrink-0"
+                                "text-gray-600 font-bold text-xs p-0 h-5 w-5 shrink-0"
+                            ).tooltip(
+                                "Cancel"
                             )
 
                 setup_header(header_container, acc_name)

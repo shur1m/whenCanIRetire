@@ -137,3 +137,10 @@ def test_render_accounts_renders_without_error():
 
     state = AppState()
     render_accounts(state, on_refresh=lambda: None)
+
+
+def test_render_expenses_renders_without_error():
+    from ui.components.expenses import render_expenses
+
+    state = AppState()
+    render_expenses(state, on_refresh=lambda: None)
