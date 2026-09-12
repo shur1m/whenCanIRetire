@@ -16,10 +16,10 @@ __all__ = [
 class Person:
     def __init__(
         self,
-        current_age: int = 22,
+        current_age: int = 30,
         retirement_age: int = 65,
-        lifespan: int = 120,
-        pre_tax_income: Union[Decimal, float, int] = 115_000,  # annual value
+        lifespan: int = 90,
+        pre_tax_income: Union[Decimal, float, int] = 100_000,  # annual value
         additional_income_tax_deductions: Union[
             Decimal, float, int
         ] = 0,  # subtracted from taxable income (income tax)

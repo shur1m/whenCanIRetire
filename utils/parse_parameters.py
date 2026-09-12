@@ -1,13 +1,101 @@
 import json
+import os
+from decimal import Decimal
+from pathlib import Path
+from typing import Any
+from utils.enums import AccountType, Filing, Frequency, MonthlyCompoundType
 from utils.parameters import Person
 from utils.globals import GlobalParameters
-from utils.schemas import ParametersSchema, TaxSchema
+from utils.schemas import (
+    AccountSchema,
+    ExpenseSchema,
+    ParametersSchema,
+    PersonSchema,
+    TaxSchema,
+)
+
+
+def create_default_person_schema() -> PersonSchema:
+    return PersonSchema(
+        current_age=30,
+        retirement_age=65,
+        lifespan=90,
+        pre_tax_income=Decimal("100000"),
+        additional_income_tax_deductions=Decimal("0"),
+        state_of_residence=None,
+        city_of_residence=None,
+        filing=Filing.INDIVIDUAL,
+        Accounts={
+            "401(k)": AccountSchema(
+                account_type=AccountType.TRADITIONAL,
+                regular_investment_frequency=Frequency.MONTHLY,
+                initial_savings=Decimal("0"),
+                regular_investment_dollar=Decimal("500.00"),
+                annual_investment_increase=Decimal("0.02"),
+                annual_investment_return=Decimal("0.07"),
+                annual_retirement_return=Decimal("0.05"),
+                compound_frequency=Frequency.MONTHLY,
+                compound_type=MonthlyCompoundType.ROOT,
+            ),
+            "Roth IRA": AccountSchema(
+                account_type=AccountType.ROTH,
+                regular_investment_frequency=Frequency.MONTHLY,
+                initial_savings=Decimal("0"),
+                regular_investment_dollar=Decimal("500.00"),
+                annual_investment_increase=Decimal("0.02"),
+                annual_investment_return=Decimal("0.07"),
+                annual_retirement_return=Decimal("0.05"),
+                compound_frequency=Frequency.MONTHLY,
+                compound_type=MonthlyCompoundType.ROOT,
+            ),
+        },
+        Expenses=[
+            ExpenseSchema(
+                name="Living Expenses",
+                expense=Decimal("2000.00"),
+                frequency=Frequency.MONTHLY,
+            )
+        ],
+    )
+
+
+def generate_default_parameters(
+    parameters_path: str = "config/parameters.json",
+    tax_path: str = "config/tax.json",
+) -> dict:
+    tax_years: list[str] = []
+    if os.path.exists(tax_path):
+        try:
+            with open(tax_path, "r") as f:
+                tax_data = json.load(f)
+                tax_years = sorted(list(tax_data.keys()))
+        except Exception:
+            tax_years = []
+
+    if not tax_years:
+        tax_years = ["2024", "2025", "2026"]
+
+    current_year = int(tax_years[-1])
+    person_dict = create_default_person_schema().model_dump(mode="json")
+    out: dict[str, Any] = {"CurrentYear": current_year}
+    for yr in tax_years:
+        out[yr] = {"Person": person_dict}
+
+    target_path = Path(parameters_path)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(target_path, "w") as f:
+        json.dump(out, f, indent=4)
+
+    return out
 
 
 def parse_parameters(
     year: int | None = None,
     parameters_path: str = "config/parameters.json",
 ) -> tuple[Person, GlobalParameters]:
+    if not os.path.exists(parameters_path) or os.path.getsize(parameters_path) == 0:
+        generate_default_parameters(parameters_path)
+
     with open(parameters_path) as parameters_json:
         parameter_data = json.load(parameters_json)
 
