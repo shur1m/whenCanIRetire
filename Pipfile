@@ -16,6 +16,8 @@ python-dateutil = "==2.9.0.post0"
 six = "==1.16.0"
 pydantic = "*"
 matplotlib = "==3.10.9"
+nicegui = "*"
+pywebview = "*"
 
 [dev-packages]
 black = "*"
