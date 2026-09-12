@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Optional
 from utils.parameters import Person
 from utils.globals import GlobalParameters, calculate_progressive_tax
 from utils.enums import AccountType
@@ -91,16 +91,173 @@ class RetirementSimulator:
         self.user = user
         self.config = config
         self.accounts = user.accounts
+        self.annual_retirement_expense: Decimal = Decimal("0")
 
-    def simulate(self) -> Dict[str, Tuple[List[int], List[Decimal]]]:
+    def calculate_lifespan_retirement_expense(
+        self, tolerance: Decimal = Decimal("0.01")
+    ) -> Decimal:
+        """Finds the maximum annual post-tax retirement expense (in today's real dollars) to reach lifespan without depleting early.
+
+        Uses binary search across candidate retirement expenses, simulating the multi-account retirement phase
+        from retirement age to lifespan age until converging within the specified tolerance.
+
+        Args:
+            tolerance: Precision threshold in dollars per year for binary search convergence.
+
+        Returns:
+            The solved annual retirement expense in today's dollars, rounded to 2 decimal places.
+        """
+        if self.user.lifespan <= self.user.retirement_age:
+            return Decimal("0")
+
+        # 1. Run accumulation phase once to snapshot account state at retirement age
+        self._reset_simulation_state()
+        dummy_labels: Dict[str, List[int]] = {name: [] for name in self.accounts}
+        dummy_values: Dict[str, List[Decimal]] = {name: [] for name in self.accounts}
+        self._run_accumulation_phase(dummy_labels, dummy_values)
+
+        retirement_savings = {
+            name: acc.current_savings for name, acc in self.accounts.items()
+        }
+        retirement_cost_basis = {
+            name: acc.cost_basis for name, acc in self.accounts.items()
+        }
+        total_savings_at_ret = sum(retirement_savings.values(), Decimal("0"))
+
+        if total_savings_at_ret <= Decimal("0"):
+            return Decimal("0")
+
+        lifespan_months = (self.user.lifespan - self.user.retirement_age) * 12
+
+        def evaluate(candidate_expense: Decimal) -> Tuple[bool, Decimal]:
+            """Simulates retirement phase for a candidate expense and returns (survived_to_lifespan, ending_savings)."""
+            for name, acc in self.accounts.items():
+                acc.current_savings = retirement_savings[name]
+                acc.cost_basis = retirement_cost_basis[name]
+
+            retirement_months = 0
+            while retirement_months < lifespan_months:
+                if all(acc.current_savings <= 0 for acc in self.accounts.values()):
+                    return False, Decimal("0")
+
+                months_since_today = (
+                    self.user.retirement_age - self.user.current_age
+                ) * 12 + retirement_months
+                inflation_factor = _adjust_for_inflation(
+                    Decimal("1"), months_since_today, self.config
+                )
+
+                remaining_net = _adjust_for_inflation(
+                    candidate_expense / Decimal("12"),
+                    months_since_today,
+                    self.config,
+                )
+
+                W_capped = {name: Decimal("0") for name in self.accounts}
+                total_trad_withdrawn = Decimal("0")
+                total_cap_withdrawn = Decimal("0")
+
+                for name, acc in self._get_drawdown_order():
+                    if remaining_net <= 0:
+                        break
+                    if acc.current_savings <= 0:
+                        continue
+
+                    if acc.account_type not in (
+                        AccountType.TRADITIONAL,
+                        AccountType.GENERIC,
+                    ):
+                        W = min(remaining_net, acc.current_savings)
+                        W_capped[name] = W
+                        remaining_net -= W
+                        continue
+
+                    W, tax = self._solve_taxable_withdrawal(
+                        acc,
+                        remaining_net,
+                        inflation_factor,
+                        total_trad_withdrawn,
+                        total_cap_withdrawn,
+                    )
+                    W_capped[name] = W
+                    if W < acc.current_savings:
+                        remaining_net = Decimal("0")
+                    else:
+                        remaining_net -= W - tax
+
+                    if acc.account_type == AccountType.TRADITIONAL:
+                        total_trad_withdrawn += W
+                    elif acc.account_type == AccountType.GENERIC:
+                        g_ratio = Decimal("0")
+                        if acc.current_savings > 0:
+                            g_ratio = max(
+                                Decimal("0"),
+                                (acc.current_savings - acc.cost_basis)
+                                / acc.current_savings,
+                            )
+                        total_cap_withdrawn += W * g_ratio
+
+                for name, acc in self.accounts.items():
+                    acc.withdraw(W_capped[name])
+
+                for acc in self.accounts.values():
+                    acc.compound_retirement_month(retirement_months)
+
+                retirement_months += 1
+
+            ending_savings = sum(
+                (acc.current_savings for acc in self.accounts.values()), Decimal("0")
+            )
+            return True, ending_savings
+
+        # 2. Establish initial binary search bounds [low, high]
+        low = Decimal("0")
+        high: Decimal = max(Decimal("10000"), total_savings_at_ret)
+
+        while True:
+            survived, _ = evaluate(high)
+            if not survived:
+                break
+            high *= Decimal("2")
+
+        # 3. Binary search until desired precision
+        iterations = 0
+        while high - low > tolerance and iterations < 50:
+            iterations += 1
+            mid = (low + high) / Decimal("2")
+            survived, ending_savings = evaluate(mid)
+            if not survived:
+                high = mid
+            else:
+                if ending_savings > 0:
+                    low = mid
+                else:
+                    high = mid
+
+        return round(low, 2)
+
+    def simulate(
+        self, fixed_annual_expense: Optional[Decimal] = None
+    ) -> Dict[str, Tuple[List[int], List[Decimal]]]:
         """Runs the complete multi-account retirement simulation.
 
         Orchestrates both accumulation and retirement phases, ensuring taxes and compounding are
-        coordinated across all accounts.
+        coordinated across all accounts. If fixed_annual_expense is None, automatically calculates
+        the expense required to deplete balances at lifespan.
+
+        Args:
+            fixed_annual_expense: Optional fixed annual retirement post-tax expense override.
 
         Returns:
             A dictionary mapping account names to tuples of (labels/ages, savings_values).
         """
+        if fixed_annual_expense is None:
+            self.annual_retirement_expense = (
+                self.calculate_lifespan_retirement_expense()
+            )
+        else:
+            self.annual_retirement_expense = fixed_annual_expense
+
         account_labels, account_values = self._reset_simulation_state()
         self._run_accumulation_phase(account_labels, account_values)
         self._run_retirement_phase(account_labels, account_values)
@@ -274,7 +431,7 @@ class RetirementSimulator:
         Draws from accounts one by one, solving for each account's pre-tax amount.
         """
         remaining_net = _adjust_for_inflation(
-            self.user.annual_retirement_post_tax_expense / Decimal("12"),
+            self.annual_retirement_expense / Decimal("12"),
             months_since_today,
             self.config,
         )
