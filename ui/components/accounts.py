@@ -47,8 +47,6 @@ def render_accounts(state: AppState, on_refresh: Callable[[], None]):
                                 ),
                             ).props("dense flat").classes(
                                 "text-blue-700 text-xs p-0 h-5 w-5"
-                            ).tooltip(
-                                "Edit"
                             )
 
                             def remove_account(name: str):
@@ -62,8 +60,6 @@ def render_accounts(state: AppState, on_refresh: Callable[[], None]):
                                 ),
                             ).props("dense flat").classes(
                                 "text-red-700 text-xs p-0 h-5 w-5"
-                            ).tooltip(
-                                "Remove"
                             )
 
                 def setup_edit_mode(container: ui.row, current_name: str):
@@ -111,16 +107,14 @@ def render_accounts(state: AppState, on_refresh: Callable[[], None]):
 
                             ui.button("✓", on_click=save).props("dense flat").classes(
                                 "text-green-700 font-bold text-xs p-0 h-5 w-5 shrink-0"
-                            ).tooltip("Save")
+                            )
                             ui.button(
                                 "✕",
                                 on_click=lambda _, c=container, n=current_name: setup_header(
                                     c, n
                                 ),
                             ).props("dense flat").classes(
-                                "text-gray-600 font-bold text-xs p-0 h-5 w-5 shrink-0"
-                            ).tooltip(
-                                "Cancel"
+                                "text-red-700 font-bold text-xs p-0 h-5 w-5 shrink-0"
                             )
 
                 setup_header(header_container, acc_name)

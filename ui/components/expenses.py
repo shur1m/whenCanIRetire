@@ -50,8 +50,6 @@ def render_expenses(state: AppState, on_refresh: Callable[[], None]):
                                 ),
                             ).props("dense flat").classes(
                                 "text-blue-700 text-xs p-0 h-5 w-5"
-                            ).tooltip(
-                                "Edit"
                             )
 
                             def remove_expense(remove_idx: int):
@@ -63,8 +61,6 @@ def render_expenses(state: AppState, on_refresh: Callable[[], None]):
                                 on_click=lambda _, index=idx: remove_expense(index),
                             ).props("dense flat").classes(
                                 "text-red-700 text-xs p-0 h-5 w-5"
-                            ).tooltip(
-                                "Remove"
                             )
 
                 def setup_expense_edit_mode(container: ui.row, idx: int):
@@ -100,16 +96,14 @@ def render_expenses(state: AppState, on_refresh: Callable[[], None]):
 
                             ui.button("✓", on_click=save).props("dense flat").classes(
                                 "text-green-700 font-bold text-xs p-0 h-5 w-5 shrink-0"
-                            ).tooltip("Save")
+                            )
                             ui.button(
                                 "✕",
                                 on_click=lambda _, c=container, index=idx: setup_expense_header(
                                     c, index
                                 ),
                             ).props("dense flat").classes(
-                                "text-gray-600 font-bold text-xs p-0 h-5 w-5 shrink-0"
-                            ).tooltip(
-                                "Cancel"
+                                "text-red-700 font-bold text-xs p-0 h-5 w-5 shrink-0"
                             )
 
                 setup_expense_header(header_container, i)
