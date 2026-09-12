@@ -1,9 +1,10 @@
 import json
+import os
 from typing import List
 
 from utils.globals import GlobalParameters
 from utils.parameters import Person
-from utils.parse_parameters import parse_parameters
+from utils.parse_parameters import generate_default_parameters, parse_parameters
 from utils.schemas import ParametersSchema, PersonSchema
 
 
@@ -28,6 +29,11 @@ class AppState:
         return sorted(list(self.parameters_schema.years.keys()))
 
     def load_raw_data(self) -> dict:
+        if (
+            not os.path.exists(self.config_path)
+            or os.path.getsize(self.config_path) == 0
+        ):
+            return generate_default_parameters(self.config_path)
         with open(self.config_path, "r") as f:
             return json.load(f)
 

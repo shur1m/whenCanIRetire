@@ -2,8 +2,8 @@ import json
 import shutil
 from pathlib import Path
 
-
 from ui.state import AppState
+from utils.parse_parameters import parse_parameters
 
 
 def test_app_state_initialization():
@@ -144,3 +144,75 @@ def test_render_expenses_renders_without_error():
 
     state = AppState()
     render_expenses(state, on_refresh=lambda: None)
+
+
+def test_app_state_auto_generates_missing_parameters_file(tmp_path: Path):
+    non_existent_config = tmp_path / "parameters.json"
+    assert not non_existent_config.exists()
+
+    state = AppState(config_path=str(non_existent_config))
+
+    assert non_existent_config.exists()
+    assert state.current_year in state.get_available_years()
+    assert len(state.get_available_years()) > 0
+    assert len(state.person_schema.Accounts) > 0
+    assert len(state.person_schema.Expenses) > 0
+    assert state.user is not None
+    assert state.config is not None
+
+    with open(non_existent_config, "r") as f:
+        data = json.load(f)
+    assert "CurrentYear" in data
+    assert state.current_year in data
+
+
+def test_app_state_auto_generates_nested_directory(tmp_path: Path):
+    nested_config = tmp_path / "deep" / "nested" / "parameters.json"
+    assert not nested_config.exists()
+
+    state = AppState(config_path=str(nested_config))
+    assert nested_config.exists()
+    assert state.person_schema is not None
+
+
+def test_parse_parameters_auto_generates_missing_parameters_file(tmp_path: Path):
+    non_existent_config = tmp_path / "parameters.json"
+    assert not non_existent_config.exists()
+
+    user, config = parse_parameters(parameters_path=str(non_existent_config))
+    assert non_existent_config.exists()
+    assert user.pre_tax_income > 0
+    assert len(user.accounts) > 0
+    assert config is not None
+
+
+def test_auto_generated_file_can_be_modified_and_saved(tmp_path: Path):
+    config_path = tmp_path / "parameters.json"
+    state = AppState(config_path=str(config_path))
+    state.person_schema.current_age = 45
+    state.save_raw_data()
+
+    reloaded = AppState(config_path=str(config_path))
+    assert reloaded.person_schema.current_age == 45
+
+
+def test_simulator_handles_empty_accounts():
+    from decimal import Decimal
+    from calculate.simulator import RetirementSimulator
+    from utils.parameters import Person
+    from utils.globals import GlobalParameters
+    from utils.schemas import TaxSchema
+
+    with open("config/tax.json") as f:
+        tax_data = json.load(f)
+    tax_config = TaxSchema.model_validate(tax_data)
+    config = GlobalParameters(
+        year=2026,
+        inflation_rate=Decimal("0.03"),
+        yearly_tax=tax_config.root["2026"],
+    )
+    user = Person()
+    sim = RetirementSimulator(user, config)
+    results = sim.simulate()
+    assert results == {}
+    assert sim.annual_retirement_expense == Decimal("0")

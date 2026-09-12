@@ -251,6 +251,10 @@ class RetirementSimulator:
         Returns:
             A dictionary mapping account names to tuples of (labels/ages, savings_values).
         """
+        if not self.accounts:
+            self.annual_retirement_expense = Decimal("0")
+            return {}
+
         if fixed_annual_expense is None:
             self.annual_retirement_expense = (
                 self.calculate_lifespan_retirement_expense()
@@ -493,6 +497,8 @@ class RetirementSimulator:
         account_values: Dict[str, List[Decimal]],
     ) -> None:
         """Appends zero balances for the depletion year to represent account bankruptcy."""
+        if not self.accounts:
+            return
         last_year = (
             account_labels[next(iter(self.accounts))][-1]
             if account_labels[next(iter(self.accounts))]
