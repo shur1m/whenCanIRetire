@@ -4,8 +4,11 @@ from utils.globals import GlobalParameters
 from utils.schemas import ParametersSchema, TaxSchema
 
 
-def parse_parameters(year: int | None = None) -> tuple[Person, GlobalParameters]:
-    with open("config/parameters.json") as parameters_json:
+def parse_parameters(
+    year: int | None = None,
+    parameters_path: str = "config/parameters.json",
+) -> tuple[Person, GlobalParameters]:
+    with open(parameters_path) as parameters_json:
         parameter_data = json.load(parameters_json)
 
     # Validate parameters config

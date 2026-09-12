@@ -20,7 +20,9 @@ class AppState:
         ].Person
         self.user: Person
         self.config: GlobalParameters
-        self.user, self.config = parse_parameters(year=int(self.current_year))
+        self.user, self.config = parse_parameters(
+            year=int(self.current_year), parameters_path=self.config_path
+        )
 
     def get_available_years(self) -> List[str]:
         return sorted(list(self.parameters_schema.years.keys()))
@@ -33,7 +35,9 @@ class AppState:
         self.current_year = year_str
         self.parameters_schema.CurrentYear = int(year_str)
         self.person_schema = self.parameters_schema.years[self.current_year].Person
-        self.user, self.config = parse_parameters(year=int(self.current_year))
+        self.user, self.config = parse_parameters(
+            year=int(self.current_year), parameters_path=self.config_path
+        )
 
     def save_raw_data(self):
         self.parameters_schema.years[self.current_year].Person = self.person_schema
@@ -44,4 +48,26 @@ class AppState:
             out[year_k] = year_v
         with open(self.config_path, "w") as f:
             json.dump(out, f, indent=4)
-        self.user, self.config = parse_parameters(year=int(self.current_year))
+        self.user, self.config = parse_parameters(
+            year=int(self.current_year), parameters_path=self.config_path
+        )
+
+    def rename_account(self, old_name: str, new_name: str) -> bool:
+        if old_name not in self.person_schema.Accounts:
+            return False
+        new_name_stripped = new_name.strip()
+        if not new_name_stripped:
+            return False
+        if new_name_stripped == old_name:
+            return True
+        if new_name_stripped in self.person_schema.Accounts:
+            return False
+
+        new_accounts = {}
+        for k, v in self.person_schema.Accounts.items():
+            if k == old_name:
+                new_accounts[new_name_stripped] = v
+            else:
+                new_accounts[k] = v
+        self.person_schema.Accounts = new_accounts
+        return True
