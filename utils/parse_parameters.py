@@ -4,14 +4,14 @@ from utils.globals import GlobalParameters
 from utils.schemas import ParametersSchema, TaxSchema
 
 
-def parse_parameters() -> tuple[Person, GlobalParameters]:
+def parse_parameters(year: int | None = None) -> tuple[Person, GlobalParameters]:
     with open("config/parameters.json") as parameters_json:
         parameter_data = json.load(parameters_json)
 
     # Validate parameters config
     parameters_config = ParametersSchema.model_validate(parameter_data)
 
-    current_year = parameters_config.CurrentYear
+    current_year = year if year is not None else parameters_config.CurrentYear
     yearly_config = parameters_config.years[str(current_year)]
     person_config = yearly_config.Person
 

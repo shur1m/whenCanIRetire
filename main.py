@@ -1,8 +1,9 @@
-from decimal import Decimal
-from matplotlib.axes import Axes
-import matplotlib.pyplot as plt
+import argparse
 import logging
 import json
+from decimal import Decimal
+import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 
 from calculate.aggregate import (
     calculate_income_distribution_data,
@@ -98,21 +99,38 @@ def generate_income_distribution_graph(
     logger.info(f"Pie Sizes: {json.dumps(pie_sizes_map, indent=4)}")
 
 
-def main():
+def run_matplotlib():
     user, config = parse_parameters()
-
-    # TODO company match, needs to be changed so that contribution does not subtract from pay
-    # HSA company match
-    # user.add_account(Account(regular_investment_frequency=Frequency.MONTHLY,
-    #                     regular_investment_dollar=500/12,
-    #                     annual_investment_increase=0.02,
-    #                     account_type=AccountType.HSA,
-    #                     annual_retirement_post_tax_expense=16_000), "HSA company match")
 
     fig, (ax1, ax2) = plt.subplots(1, 2)  # type: ignore
     generate_investment_growth_graph(user, config, ax1)
     generate_income_distribution_graph(user, config, ax2)
     plt.show()
+
+
+def main():
+    parser = argparse.ArgumentParser(description="whenCanIRetire Application")
+    parser.add_argument(
+        "--matplotlib",
+        action="store_true",
+        help="Run the application with the matplotlib UI instead of the NiceGUI desktop app",
+    )
+    args = parser.parse_args()
+
+    if args.matplotlib:
+        run_matplotlib()
+    else:
+        # Import inside the block so nicegui isn't loaded unnecessarily if running matplotlib
+        import ui.app as app
+        from nicegui import ui
+
+        app.init_ui()
+        ui.run(
+            native=True,
+            window_size=(1200, 800),
+            title="When Can I Retire?",
+            reload=False,
+        )
 
 
 if __name__ == "__main__":
