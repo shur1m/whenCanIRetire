@@ -91,3 +91,15 @@
   width: 100% !important;
   box-sizing: border-box !important;
 }
+
+.btn-red,
+.btn-red .q-btn__content,
+.btn-red.q-btn {
+  color: #c62828 !important;
+}
+
+.btn-green,
+.btn-green .q-btn__content,
+.btn-green.q-btn {
+  color: #1b5e20 !important;
+}

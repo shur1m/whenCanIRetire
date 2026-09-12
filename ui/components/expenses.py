@@ -58,9 +58,12 @@ def render_expenses(state: AppState, on_refresh: Callable[[], None]):
 
                             ui.button(
                                 "✕",
+                                color="red",
                                 on_click=lambda _, index=idx: remove_expense(index),
                             ).props("dense flat").classes(
-                                "text-red-700 text-xs p-0 h-5 w-5"
+                                "btn-red text-xs p-0 h-5 w-5"
+                            ).style(
+                                "color: #c62828 !important;"
                             )
 
                 def setup_expense_edit_mode(container: ui.row, idx: int):
@@ -94,16 +97,25 @@ def render_expenses(state: AppState, on_refresh: Callable[[], None]):
                                 lambda: setup_expense_header(container, idx),
                             )
 
-                            ui.button("✓", on_click=save).props("dense flat").classes(
-                                "text-green-700 font-bold text-xs p-0 h-5 w-5 shrink-0"
+                            ui.button(
+                                "✓",
+                                color="green",
+                                on_click=save,
+                            ).props("dense flat").classes(
+                                "btn-green font-bold text-xs p-0 h-5 w-5 shrink-0"
+                            ).style(
+                                "color: #1b5e20 !important;"
                             )
                             ui.button(
                                 "✕",
+                                color="red",
                                 on_click=lambda _, c=container, index=idx: setup_expense_header(
                                     c, index
                                 ),
                             ).props("dense flat").classes(
-                                "text-red-700 font-bold text-xs p-0 h-5 w-5 shrink-0"
+                                "btn-red font-bold text-xs p-0 h-5 w-5 shrink-0"
+                            ).style(
+                                "color: #c62828 !important;"
                             )
 
                 setup_expense_header(header_container, i)
