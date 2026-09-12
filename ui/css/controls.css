@@ -1,0 +1,175 @@
+/* Quasar input overrides for compact desktop density */
+.q-field--dense .q-field__control {
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  padding: 0 6px !important;
+  border-radius: 2px !important;
+  background-color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+
+.q-field__control-container {
+  height: 100% !important;
+  min-height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.q-field--dense .q-field__marginal {
+  height: 100% !important;
+  min-height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 2px !important;
+}
+
+.q-field--dense .q-field__marginal .q-icon {
+  font-size: 14px !important;
+  line-height: 1 !important;
+}
+
+.q-field--outlined .q-field__control:before {
+  border-color: #b0b0b0 !important;
+  border-radius: 2px !important;
+}
+
+.q-field--outlined:hover .q-field__control:before {
+  border-color: #707070 !important;
+}
+
+.q-field--focused .q-field__control:before {
+  border-color: #3a5874 !important;
+  border-width: 1px !important;
+}
+
+.q-field__native, .q-field__input {
+  font-size: 12px !important;
+  color: #222222 !important;
+  padding: 0 2px !important;
+  margin: 0 !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  box-sizing: border-box !important;
+}
+
+input.q-field__native {
+  height: 100% !important;
+  line-height: normal !important;
+  padding: 0 2px 2px 2px !important;
+  margin: 0 !important;
+}
+
+/* Scoped Drawer Inputs */
+.desktop-drawer .q-field,
+.desktop-drawer .q-select {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-drawer .q-field__control {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.desktop-drawer .q-field__control-container {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+/* Scoped Toolbar Dropdowns */
+.desktop-toolbar .q-field,
+.desktop-toolbar .q-select {
+  width: 85px !important;
+  max-width: 85px !important;
+  min-width: 85px !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+
+/* Compact Dropdown Text & Truncation */
+.q-select .q-field__native {
+  height: 100% !important;
+  min-height: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  padding: 0 2px !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.q-select .q-field__native > span {
+  display: inline-flex !important;
+  align-items: center !important;
+  line-height: normal !important;
+  height: 100% !important;
+  padding-bottom: 2px !important;
+  margin: 0 !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Compact Dropdown Popup Menu Items */
+.q-menu .q-item {
+  min-height: 24px !important;
+  height: 24px !important;
+  padding: 2px 8px !important;
+  font-size: 12px !important;
+}
+
+.q-menu .q-item__section {
+  min-height: 24px !important;
+}
+
+/* Hide Quasar Floating Labels */
+.q-field__label {
+  display: none !important;
+}
+
+/* Completely Remove All Transitions, Animations, and Ripples from Inputs & Buttons */
+.q-btn,
+.q-btn *,
+.desktop-btn,
+.desktop-btn *,
+.q-field,
+.q-field *,
+.q-field__control,
+.q-field__control:before,
+.q-field__control:after,
+.q-field__native,
+.q-field__input,
+.q-select,
+.q-select *,
+.q-menu,
+.q-menu * {
+  transition: none !important;
+  animation: none !important;
+}
+
+.q-ripple {
+  display: none !important;
+}
+
+/* Remove Shadows from Tab Selection and Button Groups */
+.q-tabs,
+.q-tab,
+.q-btn-group,
+.q-btn-toggle,
+.q-btn-group *,
+.q-btn-toggle * {
+  box-shadow: none !important;
+}
