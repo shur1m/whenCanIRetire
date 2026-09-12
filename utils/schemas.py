@@ -24,10 +24,10 @@ class AccountSchema(BaseModel):
 
 
 class PersonSchema(BaseModel):
-    current_age: int = 22
+    current_age: int = 30
     retirement_age: int = 65
-    lifespan: int = 120
-    pre_tax_income: Decimal = Decimal("115000")
+    lifespan: int = 90
+    pre_tax_income: Decimal = Decimal("100000")
     additional_income_tax_deductions: Decimal = Decimal("0")
     state_of_residence: Optional[State] = None
     city_of_residence: Optional[City] = None

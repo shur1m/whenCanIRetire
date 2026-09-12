@@ -17,10 +17,10 @@ from utils.schemas import (
 
 def create_default_person_schema() -> PersonSchema:
     return PersonSchema(
-        current_age=24,
+        current_age=30,
         retirement_age=65,
-        lifespan=100,
-        pre_tax_income=Decimal("115000"),
+        lifespan=90,
+        pre_tax_income=Decimal("100000"),
         additional_income_tax_deductions=Decimal("0"),
         state_of_residence=None,
         city_of_residence=None,
@@ -30,29 +30,18 @@ def create_default_person_schema() -> PersonSchema:
                 account_type=AccountType.TRADITIONAL,
                 regular_investment_frequency=Frequency.MONTHLY,
                 initial_savings=Decimal("0"),
-                regular_investment_dollar=Decimal("1916.67"),
+                regular_investment_dollar=Decimal("500.00"),
                 annual_investment_increase=Decimal("0.02"),
                 annual_investment_return=Decimal("0.07"),
                 annual_retirement_return=Decimal("0.05"),
                 compound_frequency=Frequency.MONTHLY,
                 compound_type=MonthlyCompoundType.ROOT,
             ),
-            "ROTH IRA": AccountSchema(
+            "Roth IRA": AccountSchema(
                 account_type=AccountType.ROTH,
                 regular_investment_frequency=Frequency.MONTHLY,
                 initial_savings=Decimal("0"),
-                regular_investment_dollar=Decimal("583.33"),
-                annual_investment_increase=Decimal("0.02"),
-                annual_investment_return=Decimal("0.07"),
-                annual_retirement_return=Decimal("0.05"),
-                compound_frequency=Frequency.MONTHLY,
-                compound_type=MonthlyCompoundType.ROOT,
-            ),
-            "HSA": AccountSchema(
-                account_type=AccountType.HSA,
-                regular_investment_frequency=Frequency.MONTHLY,
-                initial_savings=Decimal("0"),
-                regular_investment_dollar=Decimal("325.00"),
+                regular_investment_dollar=Decimal("500.00"),
                 annual_investment_increase=Decimal("0.02"),
                 annual_investment_return=Decimal("0.07"),
                 annual_retirement_return=Decimal("0.05"),
@@ -62,8 +51,8 @@ def create_default_person_schema() -> PersonSchema:
         },
         Expenses=[
             ExpenseSchema(
-                name="Fixed Costs",
-                expense=Decimal("3000.00"),
+                name="Living Expenses",
+                expense=Decimal("2000.00"),
                 frequency=Frequency.MONTHLY,
             )
         ],
