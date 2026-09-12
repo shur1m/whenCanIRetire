@@ -84,6 +84,14 @@ input.q-field__native {
   box-sizing: border-box !important;
 }
 
+.desktop-drawer .item-rename-input.q-field,
+.desktop-drawer .account-rename-input.q-field {
+  width: auto !important;
+  max-width: none !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
 /* Scoped Toolbar Dropdowns */
 .desktop-toolbar .q-field,
 .desktop-toolbar .q-select {

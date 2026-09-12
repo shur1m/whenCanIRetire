@@ -14,7 +14,10 @@ def render_accounts(state: AppState, on_refresh: Callable[[], None]):
             ui.label("Investment Accounts").classes("desktop-group-title mb-0")
 
             def add_account():
-                name = f"Account {len(state.person_schema.Accounts) + 1}"
+                i = len(state.person_schema.Accounts) + 1
+                while f"Account {i}" in state.person_schema.Accounts:
+                    i += 1
+                name = f"Account {i}"
                 state.person_schema.Accounts[name] = AccountSchema()
                 on_refresh()
 
@@ -26,17 +29,107 @@ def render_accounts(state: AppState, on_refresh: Callable[[], None]):
             with ui.element("div").classes(
                 "border border-gray-300 bg-white p-2 mb-2 rounded-sm"
             ):
-                with ui.row().classes("items-center justify-between w-full mb-1"):
-                    ui.label(acc_name).classes("font-semibold text-xs text-gray-800")
+                header_container = ui.row().classes(
+                    "items-center justify-between w-full mb-1 min-h-[26px]"
+                )
 
-                    def remove_account(name: str):
-                        del state.person_schema.Accounts[name]
-                        on_refresh()
+                def setup_header(container: ui.row, current_name: str):
+                    container.clear()
+                    with container:
+                        ui.label(current_name).classes(
+                            "font-semibold text-xs text-gray-800 truncate"
+                        )
+                        with ui.row().classes("items-center gap-1 shrink-0"):
+                            ui.button(
+                                "✎",
+                                on_click=lambda _, c=container, n=current_name: setup_edit_mode(
+                                    c, n
+                                ),
+                            ).props("dense flat").classes(
+                                "text-blue-700 text-xs p-0 h-5 w-5"
+                            )
 
-                    ui.button(
-                        "✕ Remove",
-                        on_click=lambda _, name=acc_name: remove_account(name),
-                    ).props("dense flat").classes("text-red-700 text-xs p-0 h-5")
+                            def remove_account(name: str):
+                                del state.person_schema.Accounts[name]
+                                on_refresh()
+
+                            ui.button(
+                                "✕",
+                                color="red",
+                                on_click=lambda _, name=current_name: remove_account(
+                                    name
+                                ),
+                            ).props("dense flat").classes(
+                                "btn-red text-xs p-0 h-5 w-5"
+                            ).style(
+                                "color: #c62828 !important;"
+                            )
+
+                def setup_edit_mode(container: ui.row, current_name: str):
+                    container.clear()
+                    with container:
+                        with ui.row().classes("items-center gap-1 w-full no-wrap"):
+                            name_input = (
+                                ui.input(value=current_name)
+                                .props("dense outlined autofocus")
+                                .classes("item-rename-input text-xs")
+                            )
+
+                            def save():
+                                new_name = (
+                                    name_input.value.strip() if name_input.value else ""
+                                )
+                                if not new_name:
+                                    ui.notify(
+                                        "Account name cannot be empty.",
+                                        type="warning",
+                                        position="top",
+                                    )
+                                    return
+                                if (
+                                    new_name != current_name
+                                    and new_name in state.person_schema.Accounts
+                                ):
+                                    ui.notify(
+                                        f"Account '{new_name}' already exists.",
+                                        type="warning",
+                                        position="top",
+                                    )
+                                    return
+                                if new_name != current_name:
+                                    state.rename_account(current_name, new_name)
+                                    on_refresh()
+                                else:
+                                    setup_header(container, current_name)
+
+                            name_input.on("keydown.enter", save)
+                            name_input.on(
+                                "keydown.escape",
+                                lambda: setup_header(container, current_name),
+                            )
+
+                            ui.button(
+                                "✓",
+                                color="green",
+                                on_click=save,
+                            ).props("dense flat").classes(
+                                "btn-green font-bold text-xs p-0 h-5 w-5 shrink-0"
+                            ).style(
+                                "color: #1b5e20 !important;"
+                            )
+                            ui.button(
+                                "✕",
+                                color="red",
+                                on_click=lambda _, c=container, n=current_name: setup_header(
+                                    c, n
+                                ),
+                            ).props("dense flat").classes(
+                                "btn-red font-bold text-xs p-0 h-5 w-5 shrink-0"
+                            ).style(
+                                "color: #c62828 !important;"
+                            )
+
+                setup_header(header_container, acc_name)
 
                 with ui.grid(columns=2).classes("w-full gap-2 min-w-0"):
                     with ui.column().classes("gap-0.5 w-full min-w-0"):
