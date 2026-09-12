@@ -87,11 +87,7 @@ def render_personal_info(state: AppState):
                 ui.label("State").classes("text-[11px] text-gray-700 font-medium")
 
                 def on_state_change(e):
-                    val = (
-                        None
-                        if (e.value is None or e.value == "(None)")
-                        else e.value
-                    )
+                    val = None if (e.value is None or e.value == "(None)") else e.value
                     setattr(state.person_schema, "state_of_residence", val)
 
                 ui.select(
@@ -108,11 +104,7 @@ def render_personal_info(state: AppState):
                 ui.label("City").classes("text-[11px] text-gray-700 font-medium")
 
                 def on_city_change(e):
-                    val = (
-                        None
-                        if (e.value is None or e.value == "(None)")
-                        else e.value
-                    )
+                    val = None if (e.value is None or e.value == "(None)") else e.value
                     setattr(state.person_schema, "city_of_residence", val)
 
                 ui.select(
