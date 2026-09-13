@@ -91,14 +91,11 @@ def init_ui():
                 budget_chart.run_chart_method("hideLoading")
                 retirement_chart.run_chart_method("hideLoading")
                 set_save_buttons_enabled(True)
-                try:
-                    ui.notify(
-                        f"Error calculating charts: {ex}",
-                        type="negative",
-                        position="top",
-                    )
-                except Exception:
-                    pass
+                ui.notify(
+                    f"Error calculating charts: {ex}",
+                    type="negative",
+                    position="top",
+                )
             return
 
         # If a newer calculation was started while this one was computing, discard stale result
@@ -124,20 +121,14 @@ def init_ui():
             return
         try:
             app_state.save_raw_data()
-            try:
-                ui.notify(
-                    "Configuration saved successfully!",
-                    type="positive",
-                    position="top",
-                )
-            except Exception:
-                pass
+            ui.notify(
+                "Configuration saved successfully!",
+                type="positive",
+                position="top",
+            )
             await update_charts()
         except Exception as ex:
-            try:
-                ui.notify(f"Error saving: {ex}", type="negative", position="top")
-            except Exception:
-                pass
+            ui.notify(f"Error saving: {ex}", type="negative", position="top")
 
     async def on_year_change(new_year: Any):
         if hasattr(new_year, "value"):
@@ -145,14 +136,11 @@ def init_ui():
         new_year = str(new_year)
         app_state.set_year(new_year)
         render_config_form()
-        try:
-            ui.notify(
-                f"Switched to Tax Year {new_year}",
-                type="info",
-                position="top",
-            )
-        except Exception:
-            pass
+        ui.notify(
+            f"Switched to Tax Year {new_year}",
+            type="info",
+            position="top",
+        )
         await update_charts()
 
     # Top Toolbar
