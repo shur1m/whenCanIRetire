@@ -1,13 +1,13 @@
-from typing import Callable
+from typing import Any, Callable
 from nicegui import ui
 from ui.state import AppState
 
 
 def render_header(
     state: AppState,
-    on_year_change: Callable[[str], None],
-    on_save: Callable[[], None],
-):
+    on_year_change: Callable[[str], Any],
+    on_save: Callable[[], Any],
+) -> ui.button:
     with ui.header().classes(
         "desktop-toolbar flex items-center justify-between no-wrap"
     ):
@@ -23,6 +23,7 @@ def render_header(
             ).props("dense outlined options-dense").classes("w-20 bg-white")
 
         with ui.row().classes("items-center gap-2 no-wrap"):
-            ui.button("Save & Calculate", on_click=on_save).classes(
+            save_button = ui.button("Save & Calculate", on_click=on_save).classes(
                 "desktop-btn desktop-btn-primary"
             )
+            return save_button
